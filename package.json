@@ -1,0 +1,25 @@
+{
+  "name": "hadestunnel",
+  "version": "1.0.0",
+  "description": "Multi-provider tunnel manager with web UI",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun --watch run index.ts",
+    "help": "bun run index.ts --help",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.7",
+    "hono": "^4.10.8",
+    "localtunnel": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/localtunnel": "^2.0.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
