@@ -14,6 +14,10 @@ OPTIONS:
 
 ENVIRONMENT:
   PORT                    Server port (default: 4000)
+  CLOUDFLARE_TUNNEL_TOKEN Cloudflare tunnel token (for named tunnels)
+  NGROK_AUTHTOKEN         ngrok authentication token
+  PINGGY_TOKEN            Pinggy Pro token
+  PINGGY_PASSWORD         Pinggy Pro password
 
 PROVIDERS:
   • Pinggy       Free SSH tunneling, no installation needed
@@ -32,24 +36,131 @@ EXAMPLES:
   # Development mode
   bun run dev
 
-INSTALLATION GUIDES:
+═══════════════════════════════════════════════════════════════
+                    INSTALLATION GUIDES
+═══════════════════════════════════════════════════════════════
 
-  Cloudflare Tunnel:
-    # macOS
+┌─────────────────────────────────────────────────────────────┐
+│  CLOUDFLARE TUNNEL (cloudflared)                            │
+│  https://developers.cloudflare.com/cloudflare-one/          │
+│  networks/connectors/cloudflare-tunnel/                     │
+└─────────────────────────────────────────────────────────────┘
+
+  ▶ Windows (winget - recommended)
+    winget install --id Cloudflare.cloudflared
+
+  ▶ Windows (Chocolatey)
+    choco install cloudflared
+
+  ▶ Windows (Manual)
+    1. Download from: https://developers.cloudflare.com/cloudflare-one/
+       networks/connectors/cloudflare-tunnel/downloads/
+    2. Rename to cloudflared.exe
+    3. Add to PATH or run from download directory
+
+  ▶ macOS (Homebrew)
     brew install cloudflared
-    
-    # Linux
-    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-    chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/
 
-  ngrok:
-    # macOS
-    brew install ngrok
-    
-    # Linux
-    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc
-    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+  ▶ Linux - Debian/Ubuntu (APT)
+    # Add Cloudflare's package signing key
+    sudo mkdir -p --mode=0755 /usr/share/keyrings
+    curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | \\
+      sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
+
+    # Add Cloudflare's apt repo
+    echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] \\
+      https://pkg.cloudflare.com/cloudflared any main" | \\
+      sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+    # Install
+    sudo apt-get update && sudo apt-get install cloudflared
+
+  ▶ Linux - RHEL/CentOS/Fedora (RPM)
+    curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | \\
+      sudo tee /etc/yum.repos.d/cloudflared.repo
+    sudo yum update && sudo yum install cloudflared
+
+  ▶ Linux - Arch
+    pacman -Syu cloudflared
+
+  ▶ Linux - Binary (universal)
+    curl -L https://github.com/cloudflare/cloudflared/releases/\\
+      latest/download/cloudflared-linux-amd64 -o cloudflared
+    chmod +x cloudflared
+    sudo mv cloudflared /usr/local/bin/
+
+  ▶ Build from source
+    git clone https://github.com/cloudflare/cloudflared.git
+    cd cloudflared
+    make cloudflared
+    go install github.com/cloudflare/cloudflared/cmd/cloudflared
+
+┌─────────────────────────────────────────────────────────────┐
+│  NGROK                                                      │
+│  https://ngrok.com/docs/getting-started/                    │
+└─────────────────────────────────────────────────────────────┘
+
+  ▶ Windows (Chocolatey)
+    choco install ngrok
+
+  ▶ Windows (Manual)
+    1. Download from: https://ngrok.com/download
+    2. Extract and add to PATH
+
+  ▶ macOS (Homebrew)
+    brew install ngrok/ngrok/ngrok
+
+  ▶ Linux - Debian/Ubuntu (APT)
+    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \\
+      sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \\
+      sudo tee /etc/apt/sources.list.d/ngrok.list
     sudo apt update && sudo apt install ngrok
+
+  ▶ Linux - Snap
+    snap install ngrok
+
+  After installation, authenticate with:
+    ngrok config add-authtoken YOUR_AUTHTOKEN
+
+┌─────────────────────────────────────────────────────────────┐
+│  PINGGY                                                     │
+│  https://pinggy.io/docs/                                    │
+└─────────────────────────────────────────────────────────────┘
+
+  No installation required! Uses SSH (already installed on most systems).
+  
+  ▶ Free tier (no signup)
+    Works instantly - just select Pinggy in the UI
+
+  ▶ Pro tier (persistent URLs)
+    1. Sign up at https://dashboard.pinggy.io
+    2. Get your token and password
+    3. Enter in Hades Tunnel UI or set environment variables:
+       PINGGY_TOKEN=your_token
+       PINGGY_PASSWORD=your_password
+
+┌─────────────────────────────────────────────────────────────┐
+│  LOCALTUNNEL                                                │
+│  https://github.com/localtunnel/localtunnel                 │
+└─────────────────────────────────────────────────────────────┘
+
+  No installation required! Uses npx (comes with Node.js).
+  
+  Just make sure Node.js/npm is installed:
+  
+  ▶ Windows
+    winget install OpenJS.NodeJS
+
+  ▶ macOS
+    brew install node
+
+  ▶ Linux
+    # Using nvm (recommended)
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+    nvm install node
+
+═══════════════════════════════════════════════════════════════
 
 WEB UI:
   Open http://localhost:4000 in your browser after starting the server.

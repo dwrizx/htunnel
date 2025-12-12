@@ -2,6 +2,8 @@ export type TunnelProvider = "pinggy" | "cloudflare" | "ngrok" | "localtunnel";
 
 export type TunnelStatus = "starting" | "live" | "closed" | "error";
 
+export type CloudflareTunnelMode = "quick" | "local" | "token";
+
 export interface TunnelConfig {
   id: string;
   provider: TunnelProvider;
@@ -12,6 +14,10 @@ export interface TunnelConfig {
   pinggyPassword?: string;
   subdomain?: string;
   createdAt: Date;
+  // Cloudflare specific
+  cloudflareMode?: CloudflareTunnelMode;
+  cloudflareTunnelName?: string; // For local mode - tunnel name
+  cloudflareDomain?: string;     // For local mode - your-app.yourdomain.com
 }
 
 export interface TunnelInstance {
@@ -34,6 +40,10 @@ export interface CreateTunnelRequest {
   token?: string;
   pinggyPassword?: string;
   subdomain?: string;
+  // Cloudflare specific
+  cloudflareMode?: CloudflareTunnelMode;
+  cloudflareTunnelName?: string;
+  cloudflareDomain?: string;
 }
 
 export interface ProviderField {

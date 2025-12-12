@@ -26,6 +26,10 @@ class TunnelManager {
       pinggyPassword: request.pinggyPassword,
       subdomain: request.subdomain,
       createdAt: new Date(),
+      // Cloudflare specific
+      cloudflareMode: request.cloudflareMode,
+      cloudflareTunnelName: request.cloudflareTunnelName,
+      cloudflareDomain: request.cloudflareDomain,
     };
 
     const tunnel: TunnelInstance = {

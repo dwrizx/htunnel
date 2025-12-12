@@ -1,8 +1,14 @@
 import { Hono } from "hono";
 import { tunnelManager } from "../tunnel-manager";
 import { tunnelCard, tunnelList } from "../views/components";
-import type { CreateTunnelRequest, TunnelProvider } from "../types";
-import { runInstallCommand, checkAllProviders } from "../utils/cli-checker";
+import type { CreateTunnelRequest, TunnelProvider, CloudflareTunnelMode } from "../types";
+import { runInstallCommand, checkAllProviders, detectOS, getArch } from "../utils/cli-checker";
+import { 
+  autoInstall as autoInstallCloudflared,
+  getInstallInstructions as getCloudflaredInstructions,
+  isCloudflaredInstalled,
+  getCloudflaredVersion
+} from "../utils/cloudflared-installer";
 
 export const apiRoutes = new Hono();
 
@@ -13,14 +19,40 @@ apiRoutes.get("/tunnels", (c) => {
 apiRoutes.post("/tunnels", async (c) => {
   const form = await c.req.formData();
 
+  // Determine Cloudflare mode from form inputs
+  let cloudflareMode: CloudflareTunnelMode | undefined;
+  const provider = (form.get("provider") as TunnelProvider) || "pinggy";
+  
+  if (provider === "cloudflare") {
+    const token = form.get("token") as string;
+    const tunnelName = form.get("cloudflareTunnelName") as string;
+    const domain = form.get("cloudflareDomain") as string;
+    const modeField = form.get("cloudflareMode") as string;
+    
+    // Auto-detect mode if not explicitly set
+    if (modeField === "local" || modeField === "token" || modeField === "quick") {
+      cloudflareMode = modeField as CloudflareTunnelMode;
+    } else if (token) {
+      cloudflareMode = "token";
+    } else if (tunnelName || domain) {
+      cloudflareMode = "local";
+    } else {
+      cloudflareMode = "quick";
+    }
+  }
+
   const request: CreateTunnelRequest = {
-    provider: (form.get("provider") as TunnelProvider) || "pinggy",
+    provider,
     name: (form.get("name") as string) || "Unnamed",
     localPort: parseInt(form.get("localPort") as string) || 3000,
     localHost: (form.get("localHost") as string) || "localhost",
     token: (form.get("token") as string) || undefined,
     pinggyPassword: (form.get("pinggyPassword") as string) || undefined,
     subdomain: (form.get("subdomain") as string) || undefined,
+    // Cloudflare specific fields
+    cloudflareMode,
+    cloudflareTunnelName: (form.get("cloudflareTunnelName") as string) || undefined,
+    cloudflareDomain: (form.get("cloudflareDomain") as string) || undefined,
   };
 
   const tunnel = await tunnelManager.create(request);
@@ -80,4 +112,37 @@ apiRoutes.post("/install/:provider", async (c) => {
   const provider = c.req.param("provider") as TunnelProvider;
   const result = await runInstallCommand(provider);
   return c.json(result);
+});
+
+// System info endpoint
+apiRoutes.get("/system", (c) => {
+  return c.json({
+    platform: detectOS(),
+    arch: getArch(),
+    nodeVersion: process.version,
+    bunVersion: Bun.version,
+  });
+});
+
+// Cloudflared-specific endpoints
+apiRoutes.get("/cloudflared/status", async (c) => {
+  const installed = await isCloudflaredInstalled();
+  const version = installed ? await getCloudflaredVersion() : null;
+  const instructions = getCloudflaredInstructions();
+
+  return c.json({
+    installed,
+    version,
+    instructions,
+  });
+});
+
+apiRoutes.post("/cloudflared/install", async (c) => {
+  const result = await autoInstallCloudflared();
+  return c.json(result);
+});
+
+apiRoutes.get("/cloudflared/instructions", (c) => {
+  const instructions = getCloudflaredInstructions();
+  return c.json(instructions);
 });

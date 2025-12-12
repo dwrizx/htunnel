@@ -67,16 +67,50 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
     name: "Cloudflare Tunnel",
     color: "from-orange-500 to-amber-400",
     icon: `<svg class="size-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.5088 16.8447c.1475-.5068.0908-.9707-.1553-1.2678-.2246-.2793-.5732-.4268-.9834-.4473l-8.1572-.1123c-.0654-.0039-.1123-.0215-.1416-.0537-.0283-.0303-.0381-.0703-.0263-.1113.0205-.0703.0859-.127.1533-.127l8.2666-.1132c.8809-.0303 1.8027-.752 2.0889-1.6455l.3496-1.0898c.0146-.0478.0146-.0957.0156-.1435.0019-.0429-.0117-.085-.0166-.127-.4482-2.9297-3.0313-5.166-6.1621-5.166-3.457 0-6.2676 2.8008-6.2676 6.2568 0 .1983.0234.3925.0361.5878-.7832-.0303-1.5039.2442-2.0566.7569-.5908.5489-.9316 1.3291-.9316 2.1308 0 .1221.0088.2432.0254.3633h.0039c.0058.0322.0205.0634.0459.0868l.084.0732h13.0459c.0771 0 .1484-.0527.1699-.127l.2686-.8584z"/></svg>`,
-    description: "Enterprise-grade, requires CLI installation",
-    features: ["Fast & secure", "DDoS protection", "Custom domains", "Analytics"],
+    description: "Enterprise-grade tunnels with 3 modes",
+    features: ["Quick tunnel", "Local tunnel", "Token tunnel", "DDoS protection"],
     requiresCli: "cloudflared",
     requiresAuth: false,
+    authField: {
+      name: "cloudflareMode",
+      label: "Tunnel Mode",
+      placeholder: "Select tunnel mode",
+      type: "text",
+      required: false,
+      helpText: "Quick: instant temporary URL | Local: persistent with your domain | Token: managed via Dashboard"
+    },
+    extraFields: [
+      {
+        name: "token",
+        label: "Tunnel Token (for Token mode)",
+        placeholder: "eyJhIjoiNzI0NGQ1NTg5NDdiZTJmY2Y5ZGJlMmY5NGNiNmY1ZDIi...",
+        type: "password",
+        required: false,
+        helpText: "Get from Cloudflare Zero Trust Dashboard → Networks → Tunnels → Create → Cloudflared connector"
+      },
+      {
+        name: "cloudflareTunnelName",
+        label: "Tunnel Name (for Local mode)",
+        placeholder: "my-app-tunnel",
+        type: "text",
+        required: false,
+        helpText: "Persistent tunnel name for local mode. Will create if doesn't exist."
+      },
+      {
+        name: "cloudflareDomain",
+        label: "Domain (for Local mode)",
+        placeholder: "app.yourdomain.com",
+        type: "text",
+        required: false,
+        helpText: "Your domain (must be registered in Cloudflare). Leave empty for cfargotunnel.com subdomain."
+      }
+    ],
     installCommands: {
-      linux: "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared",
+      linux: "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared && chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/",
       macos: "brew install cloudflared",
       windows: "winget install --id Cloudflare.cloudflared",
     },
-    docsUrl: "https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/",
+    docsUrl: "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/",
   },
   ngrok: {
     name: "ngrok",
@@ -263,55 +297,91 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
         const dynamicFields = document.getElementById('dynamic-fields');
         let fieldsHtml = '';
         
-        // Auth field
-        if (data.authField) {
-          const af = data.authField;
-          const storageKey = 'hades_' + provider + '_' + af.name;
-          const savedValue = localStorage.getItem(storageKey) || '';
+        // Special handling for Cloudflare - add mode selector
+        if (provider === 'cloudflare') {
           fieldsHtml += \`
             <div>
-              <div class="flex items-center justify-between mb-1">
-                <label class="block text-[10px] text-gray-500 uppercase tracking-wider">
-                  \${af.label} \${af.required ? '<span class="text-red-400">*</span>' : '<span class="text-gray-600">(optional)</span>'}
+              <label class="block text-[10px] text-gray-500 mb-1 uppercase tracking-wider">Tunnel Mode</label>
+              <div class="grid grid-cols-3 gap-2 mb-3">
+                <label class="cursor-pointer">
+                  <input type="radio" name="cloudflareMode" value="quick" class="sr-only peer" checked onchange="updateCloudflareFields('quick')">
+                  <div class="p-2 text-center rounded-lg border-2 border-dark-600 bg-dark-700/50 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 transition-all">
+                    <div class="text-sm font-medium">Quick</div>
+                    <div class="text-[9px] text-gray-500">Instant temp URL</div>
+                  </div>
                 </label>
-                <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
-                  <input type="checkbox" id="save-\${af.name}" class="size-3 rounded" \${savedValue ? 'checked' : ''}>
-                  Save to browser
+                <label class="cursor-pointer">
+                  <input type="radio" name="cloudflareMode" value="local" class="sr-only peer" onchange="updateCloudflareFields('local')">
+                  <div class="p-2 text-center rounded-lg border-2 border-dark-600 bg-dark-700/50 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 transition-all">
+                    <div class="text-sm font-medium">Local</div>
+                    <div class="text-[9px] text-gray-500">Your domain</div>
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="cloudflareMode" value="token" class="sr-only peer" onchange="updateCloudflareFields('token')">
+                  <div class="p-2 text-center rounded-lg border-2 border-dark-600 bg-dark-700/50 peer-checked:border-violet-500 peer-checked:bg-violet-500/10 transition-all">
+                    <div class="text-sm font-medium">Token</div>
+                    <div class="text-[9px] text-gray-500">Dashboard managed</div>
+                  </div>
                 </label>
               </div>
-              <input type="\${af.type}" name="\${af.name}" id="field-\${af.name}" placeholder="\${af.placeholder}" \${af.required ? 'required' : ''} 
-                value="\${savedValue}"
-                class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
-                onchange="handleFieldSave('\${provider}', '\${af.name}', this.value)">
-              \${savedValue ? '<p class="text-[10px] text-emerald-400 mt-1">Loaded from browser storage</p>' : (af.helpText ? '<p class="text-[10px] text-gray-600 mt-1">' + af.helpText + '</p>' : '')}
+              <div id="cloudflare-mode-info" class="p-2 bg-dark-700/30 rounded-lg border border-dark-600">
+                <p class="text-[10px] text-gray-400">Quick tunnel creates an instant temporary URL on trycloudflare.com. No setup required!</p>
+              </div>
             </div>
+            <div id="cloudflare-fields"></div>
           \`;
-        }
-        
-        // Extra fields
-        if (data.extraFields) {
-          data.extraFields.forEach(ef => {
-            const storageKey = 'hades_' + provider + '_' + ef.name;
+        } else {
+          // Auth field for other providers
+          if (data.authField) {
+            const af = data.authField;
+            const storageKey = 'hades_' + provider + '_' + af.name;
             const savedValue = localStorage.getItem(storageKey) || '';
             fieldsHtml += \`
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="block text-[10px] text-gray-500 uppercase tracking-wider">
-                    \${ef.label} \${ef.required ? '<span class="text-red-400">*</span>' : '<span class="text-gray-600">(optional)</span>'}
+                    \${af.label} \${af.required ? '<span class="text-red-400">*</span>' : '<span class="text-gray-600">(optional)</span>'}
                   </label>
                   <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
-                    <input type="checkbox" id="save-\${ef.name}" class="size-3 rounded" \${savedValue ? 'checked' : ''}>
+                    <input type="checkbox" id="save-\${af.name}" class="size-3 rounded" \${savedValue ? 'checked' : ''}>
                     Save to browser
                   </label>
                 </div>
-                <input type="\${ef.type}" name="\${ef.name}" id="field-\${ef.name}" placeholder="\${ef.placeholder}" \${ef.required ? 'required' : ''} 
+                <input type="\${af.type}" name="\${af.name}" id="field-\${af.name}" placeholder="\${af.placeholder}" \${af.required ? 'required' : ''} 
                   value="\${savedValue}"
                   class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
-                  onchange="handleFieldSave('\${provider}', '\${ef.name}', this.value)">
-                \${savedValue ? '<p class="text-[10px] text-emerald-400 mt-1">Loaded from browser storage</p>' : (ef.helpText ? '<p class="text-[10px] text-gray-600 mt-1">' + ef.helpText + '</p>' : '')}
+                  onchange="handleFieldSave('\${provider}', '\${af.name}', this.value)">
+                \${savedValue ? '<p class="text-[10px] text-emerald-400 mt-1">Loaded from browser storage</p>' : (af.helpText ? '<p class="text-[10px] text-gray-600 mt-1">' + af.helpText + '</p>' : '')}
               </div>
             \`;
-          });
+          }
+          
+          // Extra fields
+          if (data.extraFields) {
+            data.extraFields.forEach(ef => {
+              const storageKey = 'hades_' + provider + '_' + ef.name;
+              const savedValue = localStorage.getItem(storageKey) || '';
+              fieldsHtml += \`
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-[10px] text-gray-500 uppercase tracking-wider">
+                      \${ef.label} \${ef.required ? '<span class="text-red-400">*</span>' : '<span class="text-gray-600">(optional)</span>'}
+                    </label>
+                    <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+                      <input type="checkbox" id="save-\${ef.name}" class="size-3 rounded" \${savedValue ? 'checked' : ''}>
+                      Save to browser
+                    </label>
+                  </div>
+                  <input type="\${ef.type}" name="\${ef.name}" id="field-\${ef.name}" placeholder="\${ef.placeholder}" \${ef.required ? 'required' : ''} 
+                    value="\${savedValue}"
+                    class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                    onchange="handleFieldSave('\${provider}', '\${ef.name}', this.value)">
+                  \${savedValue ? '<p class="text-[10px] text-emerald-400 mt-1">Loaded from browser storage</p>' : (ef.helpText ? '<p class="text-[10px] text-gray-600 mt-1">' + ef.helpText + '</p>' : '')}
+                </div>
+              \`;
+            });
+          }
         }
         
         dynamicFields.innerHTML = fieldsHtml;
@@ -324,6 +394,82 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
           warning?.classList.remove('hidden');
         } else {
           warning?.classList.add('hidden');
+        }
+      }
+      
+      // Cloudflare mode field update
+      function updateCloudflareFields(mode) {
+        const cfFields = document.getElementById('cloudflare-fields');
+        const cfInfo = document.getElementById('cloudflare-mode-info');
+        
+        const modeInfo = {
+          quick: 'Quick tunnel creates an instant temporary URL on trycloudflare.com. No setup required!',
+          local: 'Local tunnel uses locally-stored credentials. Will create a persistent tunnel with your domain. Requires cloudflared login on first use.',
+          token: 'Token tunnel uses a pre-configured token from Cloudflare Zero Trust Dashboard. URL is managed in the dashboard.'
+        };
+        
+        if (cfInfo) {
+          cfInfo.innerHTML = '<p class="text-[10px] text-gray-400">' + modeInfo[mode] + '</p>';
+        }
+        
+        let fieldsHtml = '';
+        
+        if (mode === 'token') {
+          const savedToken = localStorage.getItem('hades_cloudflare_token') || '';
+          fieldsHtml = \`
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[10px] text-gray-500 uppercase tracking-wider">Tunnel Token <span class="text-red-400">*</span></label>
+                <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+                  <input type="checkbox" id="save-token" class="size-3 rounded" \${savedToken ? 'checked' : ''}>
+                  Save to browser
+                </label>
+              </div>
+              <input type="password" name="token" id="field-token" placeholder="eyJhIjoiNzI0NGQ1NTg5NDdiZTJmY2Y5ZGJlMmY5NGNiNmY1ZDIi..." required
+                value="\${savedToken}"
+                class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                onchange="handleFieldSave('cloudflare', 'token', this.value)">
+              <p class="text-[10px] text-gray-600 mt-1">Get from: Zero Trust Dashboard → Networks → Tunnels → Create → Cloudflared</p>
+            </div>
+          \`;
+        } else if (mode === 'local') {
+          const savedTunnelName = localStorage.getItem('hades_cloudflare_cloudflareTunnelName') || '';
+          const savedDomain = localStorage.getItem('hades_cloudflare_cloudflareDomain') || '';
+          fieldsHtml = \`
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[10px] text-gray-500 uppercase tracking-wider">Tunnel Name <span class="text-gray-600">(optional)</span></label>
+                <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+                  <input type="checkbox" id="save-cloudflareTunnelName" class="size-3 rounded" \${savedTunnelName ? 'checked' : ''}>
+                  Save
+                </label>
+              </div>
+              <input type="text" name="cloudflareTunnelName" id="field-cloudflareTunnelName" placeholder="my-app-tunnel"
+                value="\${savedTunnelName}"
+                class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                onchange="handleFieldSave('cloudflare', 'cloudflareTunnelName', this.value)">
+              <p class="text-[10px] text-gray-600 mt-1">Leave empty to use tunnel name from form</p>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-[10px] text-gray-500 uppercase tracking-wider">Domain <span class="text-gray-600">(optional)</span></label>
+                <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+                  <input type="checkbox" id="save-cloudflareDomain" class="size-3 rounded" \${savedDomain ? 'checked' : ''}>
+                  Save
+                </label>
+              </div>
+              <input type="text" name="cloudflareDomain" id="field-cloudflareDomain" placeholder="app.yourdomain.com"
+                value="\${savedDomain}"
+                class="w-full px-3 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 transition-all"
+                onchange="handleFieldSave('cloudflare', 'cloudflareDomain', this.value)">
+              <p class="text-[10px] text-gray-600 mt-1">Your domain registered in Cloudflare (will auto-create DNS route)</p>
+            </div>
+          \`;
+        }
+        // Quick mode doesn't need extra fields
+        
+        if (cfFields) {
+          cfFields.innerHTML = fieldsHtml;
         }
       }
       
@@ -518,6 +664,32 @@ export function tunnelCard(tunnel: TunnelInstance): string {
                 <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 Open Dashboard (localhost:4040)
               </a>
+            </div>
+          </div>
+        </div>` : ''}
+        ${tunnel.config.provider === "cloudflare" && tunnel.extraInfo?.mode ? `
+        <div class="mb-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+          <div class="flex items-start gap-2">
+            <svg class="size-4 text-orange-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16.5088 16.8447c.1475-.5068.0908-.9707-.1553-1.2678-.2246-.2793-.5732-.4268-.9834-.4473l-8.1572-.1123c-.0654-.0039-.1123-.0215-.1416-.0537-.0283-.0303-.0381-.0703-.0263-.1113.0205-.0703.0859-.127.1533-.127l8.2666-.1132c.8809-.0303 1.8027-.752 2.0889-1.6455l.3496-1.0898c.0146-.0478.0146-.0957.0156-.1435.0019-.0429-.0117-.085-.0166-.127-.4482-2.9297-3.0313-5.166-6.1621-5.166-3.457 0-6.2676 2.8008-6.2676 6.2568 0 .1983.0234.3925.0361.5878-.7832-.0303-1.5039.2442-2.0566.7569-.5908.5489-.9316 1.3291-.9316 2.1308 0 .1221.0088.2432.0254.3633h.0039c.0058.0322.0205.0634.0459.0868l.084.0732h13.0459c.0771 0 .1484-.0527.1699-.127l.2686-.8584z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="text-xs text-orange-400 font-medium mb-1">Cloudflare Tunnel</p>
+              <p class="text-[10px] text-orange-400/70 mb-2">${tunnel.extraInfo.mode}: ${tunnel.extraInfo.note || ''}</p>
+              ${tunnel.extraInfo.dashboard ? `
+              <a href="${tunnel.extraInfo.dashboard}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg text-xs text-orange-400 transition-colors">
+                <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Zero Trust Dashboard
+              </a>` : ''}
+              <details class="text-[10px] mt-2">
+                <summary class="text-orange-400/60 cursor-pointer hover:text-orange-400">Usage tips</summary>
+                <div class="mt-2 p-2 bg-dark-800 rounded text-gray-400 space-y-1">
+                  <p><strong class="text-emerald-400">Quick Tunnel:</strong> Temporary URL, great for development</p>
+                  <p><strong class="text-amber-400">Named Tunnel:</strong> Persistent URL with Cloudflare dashboard</p>
+                  <p><strong class="text-sky-400">Documentation:</strong></p>
+                  <a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/" target="_blank" class="text-violet-400 hover:underline block">developers.cloudflare.com/cloudflare-one</a>
+                </div>
+              </details>
             </div>
           </div>
         </div>` : ''}
