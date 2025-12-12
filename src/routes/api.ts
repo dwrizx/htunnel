@@ -7,7 +7,10 @@ import {
   autoInstall as autoInstallCloudflared,
   getInstallInstructions as getCloudflaredInstructions,
   isCloudflaredInstalled,
-  getCloudflaredVersion
+  getCloudflaredVersion,
+  checkCloudflaredStatus,
+  getPlatformInfo,
+  getAvailableInstallMethods,
 } from "../utils/cloudflared-installer";
 
 export const apiRoutes = new Hono();
@@ -115,10 +118,13 @@ apiRoutes.post("/install/:provider", async (c) => {
 });
 
 // System info endpoint
-apiRoutes.get("/system", (c) => {
+apiRoutes.get("/system", async (c) => {
+  const platformInfo = await getPlatformInfo();
   return c.json({
-    platform: detectOS(),
-    arch: getArch(),
+    platform: platformInfo.os,
+    arch: platformInfo.arch,
+    distro: platformInfo.distro,
+    packageManager: platformInfo.packageManager,
     nodeVersion: process.version,
     bunVersion: Bun.version,
   });
@@ -126,23 +132,36 @@ apiRoutes.get("/system", (c) => {
 
 // Cloudflared-specific endpoints
 apiRoutes.get("/cloudflared/status", async (c) => {
-  const installed = await isCloudflaredInstalled();
-  const version = installed ? await getCloudflaredVersion() : null;
-  const instructions = getCloudflaredInstructions();
+  const status = await checkCloudflaredStatus();
+  const instructions = await getCloudflaredInstructions();
+  const methods = await getAvailableInstallMethods();
 
   return c.json({
-    installed,
-    version,
+    installed: status.installed,
+    version: status.version,
+    path: status.path,
     instructions,
+    availableMethods: methods,
   });
 });
 
 apiRoutes.post("/cloudflared/install", async (c) => {
+  // Check if already installed first
+  const status = await checkCloudflaredStatus();
+  if (status.installed) {
+    return c.json({
+      success: true,
+      message: `cloudflared ${status.version} is already installed`,
+      version: status.version,
+      skipped: true,
+    });
+  }
+  
   const result = await autoInstallCloudflared();
   return c.json(result);
 });
 
-apiRoutes.get("/cloudflared/instructions", (c) => {
-  const instructions = getCloudflaredInstructions();
+apiRoutes.get("/cloudflared/instructions", async (c) => {
+  const instructions = await getCloudflaredInstructions();
   return c.json(instructions);
 });

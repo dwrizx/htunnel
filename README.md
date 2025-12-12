@@ -2,7 +2,15 @@
 
 Multi-provider tunnel manager dengan web UI. Support Pinggy, Cloudflare Tunnel, ngrok, dan Localtunnel.
 
-**Compatible with Windows, macOS, and Linux.**
+**🖥️ Cross-Platform: Windows, macOS, and Linux**
+
+## Features
+
+- 🌐 **Multi-Provider Support**: Pinggy, Cloudflare, ngrok, Localtunnel
+- 🔄 **Auto-Detection**: Automatically detects OS, architecture, and installed CLIs
+- 📦 **Auto-Install**: One-click installation for cloudflared and other CLIs
+- 🎨 **Modern Web UI**: Beautiful dark theme with real-time status updates
+- 🔧 **Three Cloudflare Modes**: Quick (instant), Local (persistent), Token (managed)
 
 ## Quick Start
 
@@ -15,6 +23,22 @@ bun run start
 
 # Buka http://localhost:4000
 ```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [README.md](README.md) | This file - Quick start & overview |
+| [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) | Complete Cloudflare Tunnel guide |
+| [AGENTS.md](AGENTS.md) | Development guidelines for AI agents |
+
+## Platform Support
+
+| Platform | Architecture | Auto-Install |
+|----------|--------------|--------------|
+| **Windows** | x64, x86 | ✅ winget, chocolatey |
+| **macOS** | Intel, Apple Silicon | ✅ homebrew |
+| **Linux** | x64, arm64, arm | ✅ apt, dnf, yum, pacman |
 
 ## Usage
 
