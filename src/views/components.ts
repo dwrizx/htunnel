@@ -618,6 +618,18 @@ export function tunnelCard(tunnel: TunnelInstance): string {
   const uptime = tunnel.startedAt
     ? formatUptime(new Date().getTime() - tunnel.startedAt.getTime())
     : "";
+  const pinggyPrimaryUrl =
+    tunnel.config.provider === "pinggy" && tunnel.urls.length > 0
+      ? tunnel.urls[0]
+      : "";
+  let pinggyHost = "";
+  if (pinggyPrimaryUrl) {
+    try {
+      pinggyHost = new URL(pinggyPrimaryUrl).host;
+    } catch {
+      pinggyHost = "";
+    }
+  }
 
   return `
     <div class="tunnel-item bg-dark-800 rounded-xl border border-dark-700 overflow-hidden ${tunnel.status === "live" ? "border-l-2 border-l-emerald-500" : tunnel.status === "error" ? "border-l-2 border-l-red-500" : tunnel.status === "starting" ? "border-l-2 border-l-amber-500" : ""}">
@@ -714,6 +726,15 @@ export function tunnelCard(tunnel: TunnelInstance): string {
                   <p class="mt-2"><strong class="text-amber-400">fetch (JS):</strong></p>
                   <code class="block bg-dark-700 px-2 py-1 rounded text-[9px] break-all">fetch("${tunnel.urls[0]}", { headers: { "X-Pinggy-No-Screen": "true" } })</code>
                   <p class="mt-2 text-violet-400">Or use custom User-Agent header</p>
+                  ${
+                    pinggyHost
+                      ? `
+                  <p class="mt-2"><strong class="text-orange-400">Vite blocked host fix:</strong></p>
+                  <p class="text-[9px] text-gray-500">If you see <code class="bg-dark-700 px-1 rounded">Blocked request. This host is not allowed.</code>, add this in <code class="bg-dark-700 px-1 rounded">vite.config.ts</code>:</p>
+                  <pre class="bg-dark-700 px-2 py-1 rounded text-[9px] overflow-x-auto"><code>server: { allowedHosts: ["${pinggyHost}", ".pinggy.link", ".pinggy.io"] },
+preview: { allowedHosts: ["${pinggyHost}", ".pinggy.link", ".pinggy.io"] },</code></pre>`
+                      : ""
+                  }
                 </div>
               </details>
             </div>

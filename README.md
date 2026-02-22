@@ -1,212 +1,228 @@
 # Hades Tunnel
 
-Multi-provider tunnel manager dengan web UI. Support Pinggy, Cloudflare Tunnel, ngrok, dan Localtunnel.
+Multi-provider tunnel manager with a web UI built on Bun + Hono.
 
-**🖥️ Cross-Platform: Windows, macOS, and Linux**
+Supported providers:
 
-## Features
+- Pinggy
+- Cloudflare Tunnel
+- ngrok
+- Localtunnel
 
-- 🌐 **Multi-Provider Support**: Pinggy, Cloudflare, ngrok, Localtunnel
-- 🔄 **Auto-Detection**: Automatically detects OS, architecture, and installed CLIs
-- 📦 **Auto-Install**: One-click installation for cloudflared and other CLIs
-- 🎨 **Modern Web UI**: Beautiful dark theme with real-time status updates
-- 🔧 **Three Cloudflare Modes**: Quick (instant), Local (persistent), Token (managed)
+## What This Project Solves
 
-## Quick Start
+Hades Tunnel gives you one dashboard to:
 
-```bash
-# Install dependencies
-bun install
-
-# Start server
-bun run start
-
-# Buka http://localhost:4000
-```
-
-## Documentation
-
-| Document                                 | Description                          |
-| ---------------------------------------- | ------------------------------------ |
-| [README.md](README.md)                   | This file - Quick start & overview   |
-| [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) | Complete Cloudflare Tunnel guide     |
-| [AGENTS.md](AGENTS.md)                   | Development guidelines for AI agents |
+- create public tunnels to local apps,
+- inspect logs and connection status,
+- stop/restart/delete tunnels,
+- check provider readiness and installation status.
 
 ## Platform Support
 
-| Platform    | Architecture         | Auto-Install             |
-| ----------- | -------------------- | ------------------------ |
-| **Windows** | x64, x86             | ✅ winget, chocolatey    |
-| **macOS**   | Intel, Apple Silicon | ✅ homebrew              |
-| **Linux**   | x64, arm64, arm      | ✅ apt, dnf, yum, pacman |
+- Windows
+- macOS
+- Linux
 
-## Usage
+## Tech Stack
 
-### Web UI
+- Runtime: Bun
+- Web framework: Hono
+- UI: server-rendered HTML + HTMX + Tailwind CDN
+- Tunnel providers: Pinggy SDK + provider CLIs/libraries
 
-1. Buka `http://localhost:4000`
-2. Pilih provider (Pinggy, Cloudflare, ngrok, Localtunnel)
-3. Masukkan nama tunnel dan port lokal
-4. Klik "Create Tunnel"
-5. Copy URL publik yang muncul
+## Project Structure
 
-### CLI
+- `index.ts`: app entrypoint and server bootstrap
+- `src/tunnel-manager.ts`: lifecycle orchestration for all tunnels
+- `src/providers/`: provider implementations
+  - `pinggy.ts`
+  - `cloudflare.ts`
+  - `ngrok.ts`
+  - `localtunnel.ts`
+- `src/routes/`: Hono routes
+  - `web.ts`: dashboard/help/install pages
+  - `api.ts`: HTMX/API endpoints
+- `src/views/`: HTML component/layout builders
+- `src/utils/`: OS/CLI/install helpers
+- `docs/CLOUDFLARE.md`: Cloudflare-specific guide
+- `AGENTS.md`: contributor/agent workflow rules
+
+## Prerequisites
+
+- Bun installed (`bun --version`)
+- Git
+- Optional CLIs depending on provider:
+  - `cloudflared` for Cloudflare provider
+  - `ngrok` for ngrok provider
+- Node.js is required indirectly for Localtunnel usage in some environments
+
+## Installation
 
 ```bash
-# Start server
+bun install
+```
+
+## Run
+
+```bash
+# default PORT=4000
 bun run start
 
-# Development mode (hot reload)
+# dev mode (watch)
 bun run dev
 
-# Custom port
-PORT=8080 bun run start
-bun run index.ts --port 8080
-
-# Show help
+# help
 bun run help
+# or
 bun run index.ts --help
 ```
 
-## Providers
+Open:
 
-| Provider        | Requirements      | Notes                            |
-| --------------- | ----------------- | -------------------------------- |
-| **Pinggy**      | SSH               | Gratis, tanpa instalasi          |
-| **Cloudflare**  | `cloudflared` CLI | Enterprise-grade tunneling       |
-| **ngrok**       | `ngrok` CLI       | Web inspector dashboard          |
-| **Localtunnel** | npx               | Gratis, support custom subdomain |
+- Dashboard: `http://localhost:4000`
+- Help: `http://localhost:4000/help`
+- Install page: `http://localhost:4000/install`
 
 ## Environment Variables
 
 ```env
-# Server port (default: 4000)
+# Server
 PORT=4000
 
-# Cloudflare Tunnel token (optional, for named tunnels)
-CLOUDFLARE_TUNNEL_TOKEN=your_tunnel_token
+# Cloudflare (optional, depending on mode)
+CLOUDFLARE_TUNNEL_TOKEN=your_cloudflare_tunnel_token
 
-# ngrok authentication token
-NGROK_AUTHTOKEN=your_ngrok_token
+# ngrok (optional but commonly needed for full usage)
+NGROK_AUTHTOKEN=your_ngrok_authtoken
 
-# Pinggy Pro credentials (optional)
+# Pinggy (optional, used for authenticated/persistent workflows)
 PINGGY_TOKEN=your_pinggy_token
-PINGGY_PASSWORD=your_pinggy_password
 ```
 
----
+Notes:
 
-## Install Provider CLIs
+- `PINGGY_PASSWORD` is no longer used by this project.
+- Pinggy provider now uses the official SDK package: `@pinggy/pinggy`.
 
-### Cloudflare Tunnel (`cloudflared`)
+## Quality Gates (Fast Tooling)
 
-Based on [official Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/).
+This repository uses Bun-first quality tooling:
 
-#### Windows
+- Typecheck: `tsgo` (`@typescript/native-preview`)
+- Lint: `oxlint`
+- Format: `oxfmt`
 
-**Option 1: winget (recommended)**
+Available scripts:
 
-```powershell
+```bash
+bun run typecheck
+bun run lint
+bun run lint:fix
+bun run fmt
+bun run fmt:check
+bun run check:fast
+bun run check
+bun run fix
+```
+
+Recommended flow:
+
+- During development: `bun run check:fast`
+- Before commit/PR: `bun run check`
+- To auto-fix style/lint issues: `bun run fix`
+
+## Provider Matrix
+
+| Provider    | Requirements           | Auth                            | Notes                                     |
+| ----------- | ---------------------- | ------------------------------- | ----------------------------------------- |
+| Pinggy      | none (SDK-based)       | optional token                  | Supports bypass header for warning screen |
+| Cloudflare  | `cloudflared` CLI      | optional token (mode dependent) | Supports quick/local/token modes          |
+| ngrok       | `ngrok` CLI            | typically authtoken             | Includes inspector support                |
+| Localtunnel | localtunnel dependency | none                            | Can use custom subdomain                  |
+
+## Pinggy: Bypass Header and Vite Blocked Host
+
+### 1) Pinggy warning page bypass
+
+For API/webhook traffic through Pinggy, use this header:
+
+```http
+X-Pinggy-No-Screen: true
+```
+
+Examples:
+
+```bash
+curl -H "X-Pinggy-No-Screen: true" https://your-subdomain.a.free.pinggy.link
+```
+
+```ts
+fetch("https://your-subdomain.a.free.pinggy.link", {
+  headers: { "X-Pinggy-No-Screen": "true" },
+});
+```
+
+### 2) Why Vite shows "Blocked request. This host is not allowed"
+
+If your local app is Vite-based, this error is from Vite host protection, not from Pinggy.
+
+Typical message:
+
+```text
+Blocked request. This host ("xxxx.a.free.pinggy.link") is not allowed.
+```
+
+Fix by allowing tunnel hosts in `vite.config.ts` (or `vite.config.js`):
+
+```ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  server: {
+    allowedHosts: [".pinggy.link", ".pinggy.io"],
+  },
+  preview: {
+    allowedHosts: [".pinggy.link", ".pinggy.io"],
+  },
+});
+```
+
+If you want strict allowlisting, include the exact hostname too:
+
+```ts
+server: {
+  allowedHosts: ["nauzo-180-248-19-61.a.free.pinggy.link"];
+}
+preview: {
+  allowedHosts: ["nauzo-180-248-19-61.a.free.pinggy.link"];
+}
+```
+
+## Cloudflare Installation Quick Reference
+
+See full guide: `docs/CLOUDFLARE.md`
+
+Common install commands:
+
+```bash
+# macOS
+brew install cloudflared
+
+# Debian/Ubuntu
+sudo apt-get update && sudo apt-get install cloudflared
+
+# Windows (PowerShell)
 winget install --id Cloudflare.cloudflared
 ```
 
-**Option 2: Chocolatey**
-
-```powershell
-choco install cloudflared
-```
-
-**Option 3: Manual Download**
-
-1. Download from: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
-2. Rename to `cloudflared.exe`
-3. Add to PATH or run from download directory
-
-#### macOS
+## ngrok Installation Quick Reference
 
 ```bash
-brew install cloudflared
-```
-
-Or download directly from [releases page](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/).
-
-#### Linux - Debian/Ubuntu (APT)
-
-```bash
-# Add Cloudflare's package signing key
-sudo mkdir -p --mode=0755 /usr/share/keyrings
-curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | \
-  sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
-
-# Add Cloudflare's apt repo
-echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main" | \
-  sudo tee /etc/apt/sources.list.d/cloudflared.list
-
-# Install cloudflared
-sudo apt-get update && sudo apt-get install cloudflared
-```
-
-#### Linux - RHEL/CentOS/Fedora (RPM)
-
-```bash
-# Add Cloudflare's repository
-curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | \
-  sudo tee /etc/yum.repos.d/cloudflared.repo
-
-# Install cloudflared
-sudo yum update && sudo yum install cloudflared
-```
-
-#### Linux - Arch
-
-```bash
-pacman -Syu cloudflared
-```
-
-#### Linux - Binary (Universal)
-
-```bash
-# Download binary
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-
-# Make executable and move to PATH
-chmod +x cloudflared
-sudo mv cloudflared /usr/local/bin/
-```
-
-For ARM architectures, replace `amd64` with `arm64` or `arm`.
-
-#### Build from Source
-
-```bash
-git clone https://github.com/cloudflare/cloudflared.git
-cd cloudflared
-make cloudflared
-go install github.com/cloudflare/cloudflared/cmd/cloudflared
-```
-
----
-
-### ngrok
-
-#### Windows
-
-```powershell
-# Chocolatey
-choco install ngrok
-
-# Or download manually from https://ngrok.com/download
-```
-
-#### macOS
-
-```bash
+# macOS
 brew install ngrok/ngrok/ngrok
-```
 
-#### Linux - Debian/Ubuntu (APT)
-
-```bash
+# Debian/Ubuntu
 curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \
   sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
 
@@ -214,162 +230,70 @@ echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
   sudo tee /etc/apt/sources.list.d/ngrok.list
 
 sudo apt update && sudo apt install ngrok
-```
 
-#### Linux - Snap
-
-```bash
-snap install ngrok
-```
-
-#### After Installation
-
-Get your authtoken from [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken):
-
-```bash
+# then
 ngrok config add-authtoken YOUR_AUTHTOKEN
 ```
 
----
+## API Endpoints (High-Level)
 
-### Pinggy
+- `GET /api/tunnels`: render tunnel list HTML
+- `POST /api/tunnels`: create tunnel
+- `POST /api/tunnels/:id/stop`: stop tunnel
+- `POST /api/tunnels/:id/restart`: restart tunnel
+- `DELETE /api/tunnels/:id`: delete tunnel
+- `GET /api/tunnels/:id/logs`: logs HTML
+- `GET /api/providers/status`: provider readiness
+- `GET /api/stats`: tunnel stats
+- `GET /api/system`: host/platform metadata
 
-**No installation required!** Uses SSH which is already installed on most systems.
+Cloudflare-focused:
 
-- **Free tier**: Works instantly
-- **Pro tier**: Get credentials from [dashboard.pinggy.io](https://dashboard.pinggy.io)
+- `GET /api/cloudflared/status`
+- `POST /api/cloudflared/install`
+- `GET /api/cloudflared/instructions`
 
----
+## Verification Checklist (Manual)
 
-### Localtunnel
+1. Run quality gates:
+   - `bun run check`
+2. Start app:
+   - `bun run start`
+3. Create one tunnel per provider from the dashboard.
+4. Confirm tunnel status becomes `Live`.
+5. Open generated public URL and confirm it reaches your local app.
+6. Stop and restart the tunnel from UI.
+7. Confirm logs update correctly.
 
-**No installation required!** Uses npx (comes with Node.js).
+## Troubleshooting
 
-Make sure Node.js is installed:
+### Pinggy tunnel creates but browser/API fails
 
-```bash
-# Windows
-winget install OpenJS.NodeJS
+- Ensure target local app is running on the configured port.
+- Add `X-Pinggy-No-Screen: true` for non-browser traffic.
+- If using Vite, configure `allowedHosts` (see section above).
 
-# macOS
-brew install node
+### Cloudflare quick URL resolves intermittently right after creation
 
-# Linux (using nvm)
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install node
-```
+- Wait a few seconds and retry. DNS/edge propagation can be brief.
 
----
+### ngrok tunnel up but upstream returns errors
 
-## Cloudflare Tunnel Modes
+- Verify your local service is healthy on configured host/port.
 
-### Quick Tunnel (Default)
+### Provider not ready
 
-- No authentication required
-- Random URL on `.trycloudflare.com`
-- Perfect for development/testing
-- URL changes on restart
+- Open `/install` page and use install instructions.
+- Re-check `/api/providers/status`.
 
-```bash
-# How it works internally
-cloudflared tunnel --url http://localhost:3000
-```
+## Security Notes
 
-### Named Tunnel (Advanced)
+- `.env` is gitignored; do not commit real tokens.
+- Use least-privilege tokens where possible.
+- Treat tunnel URLs as public endpoints.
 
-For persistent tunnels with custom domains:
+## Contributing
 
-1. **Login to Cloudflare**
-
-   ```bash
-   cloudflared tunnel login
-   ```
-
-2. **Create a tunnel**
-
-   ```bash
-   cloudflared tunnel create my-tunnel
-   ```
-
-3. **Configure the tunnel** (create `~/.cloudflared/config.yml`)
-
-   ```yaml
-   url: http://localhost:3000
-   tunnel: <Tunnel-UUID>
-   credentials-file: /home/user/.cloudflared/<Tunnel-UUID>.json
-   ```
-
-4. **Route DNS**
-
-   ```bash
-   cloudflared tunnel route dns <UUID or NAME> <hostname>
-   ```
-
-5. **Run the tunnel**
-   ```bash
-   cloudflared tunnel run <UUID or NAME>
-   ```
-
-See [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/) for more details.
-
----
-
-## Project Structure
-
-```
-hadestunnel/
-├── index.ts              # Entry point
-├── src/
-│   ├── types.ts          # TypeScript types
-│   ├── cli.ts            # CLI parser & help
-│   ├── tunnel-manager.ts # Tunnel management
-│   ├── providers/        # Provider implementations
-│   │   ├── base.ts
-│   │   ├── pinggy.ts
-│   │   ├── cloudflare.ts
-│   │   ├── ngrok.ts
-│   │   ├── localtunnel.ts
-│   │   └── index.ts
-│   ├── routes/           # HTTP routes
-│   │   ├── web.ts
-│   │   └── api.ts
-│   ├── utils/            # Utility functions
-│   │   ├── cli-checker.ts
-│   │   └── cloudflared-installer.ts
-│   └── views/            # HTML templates
-│       ├── layout.ts
-│       └── components.ts
-├── package.json
-└── README.md
-```
-
-## API Endpoints
-
-| Method | Endpoint                   | Description                |
-| ------ | -------------------------- | -------------------------- |
-| GET    | `/`                        | Web dashboard              |
-| GET    | `/help`                    | Help page                  |
-| GET    | `/install`                 | Provider installation page |
-| GET    | `/api/tunnels`             | List all tunnels           |
-| POST   | `/api/tunnels`             | Create tunnel              |
-| POST   | `/api/tunnels/:id/stop`    | Stop tunnel                |
-| POST   | `/api/tunnels/:id/restart` | Restart tunnel             |
-| DELETE | `/api/tunnels/:id`         | Delete tunnel              |
-| GET    | `/api/tunnels/:id/logs`    | Get tunnel logs            |
-| GET    | `/api/stats`               | Get statistics             |
-| GET    | `/api/system`              | Get system info            |
-| GET    | `/api/providers/status`    | Check provider status      |
-| POST   | `/api/install/:provider`   | Auto-install provider      |
-| GET    | `/api/cloudflared/status`  | Cloudflared status         |
-| POST   | `/api/cloudflared/install` | Auto-install cloudflared   |
-
-## Tech Stack
-
-- **Runtime**: Bun
-- **Framework**: Hono
-- **Frontend**: HTMX + Tailwind CSS
-- **Tunneling**: SSH (Pinggy), CLI spawning (others)
-
-## License
-
-MIT
+- Use Conventional Commit style (`feat:`, `fix:`, `docs:`, `chore:`).
+- Run `bun run check` before opening a PR.
+- Include verification steps and screenshots for UI changes.
