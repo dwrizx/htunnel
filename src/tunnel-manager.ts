@@ -86,6 +86,51 @@ class TunnelManager {
     return tunnel;
   }
 
+  async update(
+    id: string,
+    request: Partial<CreateTunnelRequest>,
+  ): Promise<TunnelInstance | undefined> {
+    const tunnel = this.tunnels.get(id);
+    if (!tunnel) return undefined;
+
+    await this.stop(id);
+
+    tunnel.config = {
+      ...tunnel.config,
+      provider: request.provider ?? tunnel.config.provider,
+      name: request.name ?? tunnel.config.name,
+      localPort: request.localPort ?? tunnel.config.localPort,
+      localHost: request.localHost ?? tunnel.config.localHost,
+      token: request.token ?? tunnel.config.token,
+      pinggyPassword: request.pinggyPassword ?? tunnel.config.pinggyPassword,
+      subdomain: request.subdomain ?? tunnel.config.subdomain,
+      cloudflareMode: request.cloudflareMode ?? tunnel.config.cloudflareMode,
+      cloudflareTunnelName:
+        request.cloudflareTunnelName ?? tunnel.config.cloudflareTunnelName,
+      cloudflareDomain:
+        request.cloudflareDomain ?? tunnel.config.cloudflareDomain,
+    };
+
+    tunnel.status = "starting";
+    tunnel.urls = [];
+    tunnel.error = undefined;
+    tunnel.startedAt = new Date();
+    tunnel.logs.push("Applying tunnel configuration update...");
+    tunnel.logs.push(
+      `Updated: ${tunnel.config.provider} ${tunnel.config.localHost}:${tunnel.config.localPort}`,
+    );
+
+    try {
+      const provider = getProvider(tunnel.config.provider);
+      await provider.start(tunnel);
+    } catch (error) {
+      tunnel.status = "error";
+      tunnel.error = error instanceof Error ? error.message : "Unknown error";
+    }
+
+    return tunnel;
+  }
+
   delete(id: string): boolean {
     const tunnel = this.tunnels.get(id);
     if (!tunnel) return false;

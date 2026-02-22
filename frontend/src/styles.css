@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --bg-deep: #020617;
+  --bg-mid: #0b1220;
+  --bg-glow: #0f1b3a;
+  --line-soft: rgba(148, 163, 184, 0.15);
+}
+
+body {
+  font-family: "Sora", "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  @apply min-h-screen text-slate-100 antialiased;
+  background:
+    radial-gradient(
+      1200px 600px at 10% -10%,
+      rgba(56, 189, 248, 0.14),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 700px at 100% 0%,
+      rgba(45, 212, 191, 0.12),
+      transparent 55%
+    ),
+    linear-gradient(180deg, var(--bg-mid), var(--bg-deep));
+}
+
+#root {
+  isolation: isolate;
+}
+
+input,
+select,
+button,
+textarea {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+article {
+  backdrop-filter: blur(4px);
+  border-color: var(--line-soft);
+}

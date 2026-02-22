@@ -11,6 +11,7 @@
   - `tunnel-manager.ts`: tunnel lifecycle orchestration
   - `types.ts`: shared type definitions
 - `docs/` contains provider-specific docs (Cloudflare currently).
+- `frontend/` contains the Bun + Vite React app (`Vite 8 beta`, `React 19`, `React Router`, `Tailwind v4`, `Zod`, `fbtee`).
 - `skill/` contains local skill/reference documents.
 
 ## Build, Test, and Development Commands
@@ -19,6 +20,7 @@
 - `bun run start`: run production-style server (`PORT` default `4000`)
 - `bun run dev`: watch mode for local development
 - `bun run help` / `bun run index.ts --help`: print CLI help
+- `bun run dev:web`: run React frontend on Vite dev server
 
 Quality gates:
 
@@ -30,6 +32,8 @@ Quality gates:
 - `bun run check:fast`: lint + formatting check
 - `bun run check`: typecheck + lint + formatting check
 - `bun run fix`: lint autofix + format
+- `bun run --cwd frontend check`: frontend typecheck
+- `bun run --cwd frontend build`: frontend production build
 
 Agent expectation:
 

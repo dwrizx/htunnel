@@ -7,6 +7,10 @@
   "scripts": {
     "start": "bun run index.ts",
     "dev": "bun --watch run index.ts",
+    "dev:web": "bun run --cwd frontend dev",
+    "dev:all": "bun run dev & bun run dev:web",
+    "build:web": "bun run --cwd frontend build",
+    "preview:web": "bun run --cwd frontend preview",
     "help": "bun run index.ts --help",
     "typecheck": "tsgo -p tsconfig.json",
     "lint": "oxlint .",
@@ -15,6 +19,7 @@
     "fmt:check": "oxfmt --check .",
     "check:fast": "bun run lint && bun run fmt:check",
     "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "check:all": "bun run check && bun run --cwd frontend check && bun run --cwd frontend build",
     "fix": "bun run lint:fix && bun run fmt"
   },
   "dependencies": {

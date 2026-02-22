@@ -5,8 +5,13 @@ import type {
   CreateTunnelRequest,
   TunnelProvider,
   CloudflareTunnelMode,
+  TunnelInstance,
 } from "../types";
-import { runInstallCommand, checkAllProviders } from "../utils/cli-checker";
+import {
+  runInstallCommand,
+  checkAllProviders,
+  runUpdateCommand,
+} from "../utils/cli-checker";
 import {
   autoInstall as autoInstallCloudflared,
   getInstallInstructions as getCloudflaredInstructions,
@@ -16,6 +21,97 @@ import {
 } from "../utils/cloudflared-installer";
 
 export const apiRoutes = new Hono();
+
+function resolveCloudflareMode(payload: Partial<CreateTunnelRequest>) {
+  if (payload.provider !== "cloudflare") {
+    return undefined;
+  }
+
+  if (
+    payload.cloudflareMode === "quick" ||
+    payload.cloudflareMode === "local" ||
+    payload.cloudflareMode === "token"
+  ) {
+    return payload.cloudflareMode;
+  }
+  if (payload.token) {
+    return "token" as const;
+  }
+  if (payload.cloudflareTunnelName || payload.cloudflareDomain) {
+    return "local" as const;
+  }
+  return "quick" as const;
+}
+
+function serializeTunnel(tunnel: TunnelInstance) {
+  return {
+    id: tunnel.config.id,
+    status: tunnel.status,
+    urls: tunnel.urls,
+    error: tunnel.error,
+    logs: tunnel.logs,
+    password: tunnel.password,
+    extraInfo: tunnel.extraInfo,
+    startedAt: tunnel.startedAt?.toISOString() ?? null,
+    config: {
+      id: tunnel.config.id,
+      provider: tunnel.config.provider,
+      name: tunnel.config.name,
+      localPort: tunnel.config.localPort,
+      localHost: tunnel.config.localHost,
+      token: tunnel.config.token,
+      subdomain: tunnel.config.subdomain,
+      createdAt: tunnel.config.createdAt.toISOString(),
+      cloudflareMode: tunnel.config.cloudflareMode,
+      cloudflareTunnelName: tunnel.config.cloudflareTunnelName,
+      cloudflareDomain: tunnel.config.cloudflareDomain,
+    },
+  };
+}
+
+function createSseStream(
+  onTick: () => Promise<string> | string,
+  signal: AbortSignal,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+
+      const write = async () => {
+        if (closed) return;
+        try {
+          const payload = await onTick();
+          controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          controller.enqueue(
+            encoder.encode(
+              `event: error\ndata: ${JSON.stringify({ error: message })}\n\n`,
+            ),
+          );
+        }
+      };
+
+      const interval = setInterval(() => {
+        void write();
+      }, 1000);
+
+      void write();
+
+      const onAbort = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(interval);
+        controller.close();
+      };
+
+      signal.addEventListener("abort", onAbort, { once: true });
+    },
+  });
+}
 
 apiRoutes.get("/tunnels", (c) => {
   return c.html(tunnelList(tunnelManager.getAll()));
@@ -67,6 +163,172 @@ apiRoutes.post("/tunnels", async (c) => {
 
   const tunnel = await tunnelManager.create(request);
   return c.html(tunnelCard(tunnel));
+});
+
+// React/JSON API
+apiRoutes.get("/v1/tunnels", (c) => {
+  return c.json({
+    tunnels: tunnelManager.getAll().map(serializeTunnel),
+  });
+});
+
+apiRoutes.get("/v1/tunnels/events", (c) => {
+  const stream = createSseStream(() => {
+    return JSON.stringify({
+      tunnels: tunnelManager.getAll().map(serializeTunnel),
+      stats: tunnelManager.getStats(),
+    });
+  }, c.req.raw.signal);
+
+  return c.body(stream, 200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+  });
+});
+
+apiRoutes.get("/v1/tunnels/:id", (c) => {
+  const tunnel = tunnelManager.get(c.req.param("id"));
+  if (!tunnel) {
+    return c.json({ error: "Tunnel not found" }, 404);
+  }
+  return c.json({ tunnel: serializeTunnel(tunnel) });
+});
+
+apiRoutes.get("/v1/tunnels/:id/events", (c) => {
+  const id = c.req.param("id");
+  const stream = createSseStream(() => {
+    const tunnel = tunnelManager.get(id);
+    return JSON.stringify({
+      tunnel: tunnel ? serializeTunnel(tunnel) : null,
+      notFound: !tunnel,
+    });
+  }, c.req.raw.signal);
+
+  return c.body(stream, 200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+  });
+});
+
+apiRoutes.post("/v1/tunnels", async (c) => {
+  let payload: Partial<CreateTunnelRequest> = {};
+  try {
+    payload = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const provider = payload.provider || "pinggy";
+  if (
+    provider !== "pinggy" &&
+    provider !== "cloudflare" &&
+    provider !== "ngrok" &&
+    provider !== "localtunnel"
+  ) {
+    return c.json({ error: "Invalid provider" }, 400);
+  }
+
+  const request: CreateTunnelRequest = {
+    provider,
+    name: payload.name || "Unnamed",
+    localPort: payload.localPort || 3000,
+    localHost: payload.localHost || "localhost",
+    token: payload.token || undefined,
+    subdomain: payload.subdomain || undefined,
+    cloudflareMode: resolveCloudflareMode({
+      ...payload,
+      provider,
+    }),
+    cloudflareTunnelName: payload.cloudflareTunnelName,
+    cloudflareDomain: payload.cloudflareDomain,
+  };
+
+  const tunnel = await tunnelManager.create(request);
+  return c.json({ tunnel: serializeTunnel(tunnel) });
+});
+
+apiRoutes.patch("/v1/tunnels/:id", async (c) => {
+  const id = c.req.param("id");
+  let payload: Partial<CreateTunnelRequest> = {};
+  try {
+    payload = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  if (
+    payload.provider &&
+    payload.provider !== "pinggy" &&
+    payload.provider !== "cloudflare" &&
+    payload.provider !== "ngrok" &&
+    payload.provider !== "localtunnel"
+  ) {
+    return c.json({ error: "Invalid provider" }, 400);
+  }
+
+  if (
+    payload.localPort !== undefined &&
+    (!Number.isInteger(payload.localPort) ||
+      payload.localPort < 1 ||
+      payload.localPort > 65535)
+  ) {
+    return c.json({ error: "Invalid localPort" }, 400);
+  }
+
+  const existing = tunnelManager.get(id);
+  if (!existing) {
+    return c.json({ error: "Tunnel not found" }, 404);
+  }
+
+  const provider = payload.provider ?? existing.config.provider;
+  const updated = await tunnelManager.update(id, {
+    provider,
+    name: payload.name ?? existing.config.name,
+    localPort: payload.localPort ?? existing.config.localPort,
+    localHost: payload.localHost ?? existing.config.localHost,
+    token: payload.token ?? existing.config.token,
+    subdomain: payload.subdomain ?? existing.config.subdomain,
+    cloudflareMode: resolveCloudflareMode({
+      ...payload,
+      provider,
+    }),
+    cloudflareTunnelName:
+      payload.cloudflareTunnelName ?? existing.config.cloudflareTunnelName,
+    cloudflareDomain:
+      payload.cloudflareDomain ?? existing.config.cloudflareDomain,
+  });
+
+  if (!updated) {
+    return c.json({ error: "Tunnel not found" }, 404);
+  }
+
+  return c.json({ tunnel: serializeTunnel(updated) });
+});
+
+apiRoutes.post("/v1/tunnels/:id/stop", async (c) => {
+  const id = c.req.param("id");
+  const stopped = await tunnelManager.stop(id);
+  if (!stopped) {
+    return c.json({ error: "Tunnel not found or failed to stop" }, 404);
+  }
+  const tunnel = tunnelManager.get(id);
+  return c.json({ tunnel: tunnel ? serializeTunnel(tunnel) : null });
+});
+
+apiRoutes.post("/v1/tunnels/:id/restart", async (c) => {
+  const id = c.req.param("id");
+  const tunnel = await tunnelManager.restart(id);
+  if (!tunnel) {
+    return c.json({ error: "Tunnel not found" }, 404);
+  }
+  return c.json({ tunnel: serializeTunnel(tunnel) });
+});
+
+apiRoutes.delete("/v1/tunnels/:id", (c) => {
+  const deleted = tunnelManager.delete(c.req.param("id"));
+  return c.json({ deleted });
 });
 
 apiRoutes.post("/tunnels/:id/stop", async (c) => {
@@ -126,6 +388,21 @@ apiRoutes.post("/install/:provider", async (c) => {
   const provider = c.req.param("provider") as TunnelProvider;
   const result = await runInstallCommand(provider);
   return c.json(result);
+});
+
+apiRoutes.post("/providers/:provider/update", async (c) => {
+  const provider = c.req.param("provider") as TunnelProvider;
+  if (
+    provider !== "pinggy" &&
+    provider !== "cloudflare" &&
+    provider !== "ngrok" &&
+    provider !== "localtunnel"
+  ) {
+    return c.json({ success: false, error: "Invalid provider" }, 400);
+  }
+
+  const result = await runUpdateCommand(provider);
+  return c.json(result, result.success ? 200 : 500);
 });
 
 // System info endpoint

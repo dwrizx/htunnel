@@ -274,6 +274,127 @@ export async function runInstallCommand(
 }
 
 /**
+ * Run update/upgrade command for provider CLI
+ */
+export async function runUpdateCommand(provider: TunnelProvider): Promise<{
+  success: boolean;
+  output: string;
+  versionBefore?: string;
+  versionAfter?: string;
+  updated: boolean;
+}> {
+  const info = PROVIDERS[provider];
+  if (!info.requiresCli) {
+    return {
+      success: false,
+      output: "This provider does not require a CLI tool",
+      updated: false,
+    };
+  }
+
+  const os = detectOS();
+  const cli = info.requiresCli;
+  const before = await checkCliInstalled(cli);
+  const versionBefore = before.version;
+
+  let command = "";
+
+  if (os === "macos") {
+    if (provider === "cloudflare") {
+      command = "brew upgrade cloudflared || brew install cloudflared";
+    } else if (provider === "ngrok") {
+      command =
+        "brew upgrade ngrok/ngrok/ngrok || brew install ngrok/ngrok/ngrok";
+    }
+  } else if (os === "windows") {
+    if (provider === "cloudflare") {
+      command =
+        "winget upgrade --id Cloudflare.cloudflared --accept-source-agreements --accept-package-agreements || winget install --id Cloudflare.cloudflared --accept-source-agreements --accept-package-agreements";
+    } else if (provider === "ngrok") {
+      command =
+        "choco upgrade ngrok -y || winget upgrade --id ngrok.ngrok --accept-source-agreements --accept-package-agreements || choco install ngrok -y";
+    }
+  } else {
+    const distro = await detectLinuxDistro();
+    if (provider === "cloudflare") {
+      if (distro === "debian") {
+        command =
+          "sudo apt-get update && (sudo apt-get install -y --only-upgrade cloudflared || sudo apt-get install -y cloudflared)";
+      } else if (distro === "rhel") {
+        command =
+          "sudo dnf upgrade -y cloudflared || sudo yum update -y cloudflared || sudo dnf install -y cloudflared || sudo yum install -y cloudflared";
+      } else if (distro === "arch") {
+        command = "sudo pacman -Sy --noconfirm cloudflared";
+      }
+    } else if (provider === "ngrok") {
+      if (distro === "debian") {
+        command =
+          "sudo apt-get update && (sudo apt-get install -y --only-upgrade ngrok || sudo apt-get install -y ngrok)";
+      } else if (distro === "rhel") {
+        command =
+          "sudo dnf upgrade -y ngrok || sudo yum update -y ngrok || sudo dnf install -y ngrok || sudo yum install -y ngrok";
+      } else if (distro === "arch") {
+        command = "sudo pacman -Sy --noconfirm ngrok";
+      }
+    }
+  }
+
+  if (!command) {
+    const install = getInstallCommand(provider);
+    if (!install) {
+      return {
+        success: false,
+        output: `No update command available for provider ${provider}`,
+        versionBefore,
+        updated: false,
+      };
+    }
+    command = install[os] || "";
+  }
+
+  if (!command) {
+    return {
+      success: false,
+      output: `No update command available for ${os}`,
+      versionBefore,
+      updated: false,
+    };
+  }
+
+  try {
+    const proc =
+      os === "windows"
+        ? Bun.spawn(["cmd", "/c", command], { stdout: "pipe", stderr: "pipe" })
+        : Bun.spawn(["sh", "-c", command], { stdout: "pipe", stderr: "pipe" });
+
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    const exitCode = await proc.exited;
+
+    const after = await checkCliInstalled(cli);
+    const versionAfter = after.version;
+    const updated = versionBefore !== versionAfter;
+
+    return {
+      success: exitCode === 0,
+      output: stdout + (stderr ? `\n${stderr}` : ""),
+      versionBefore,
+      versionAfter,
+      updated,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      output: String(error),
+      versionBefore,
+      updated: false,
+    };
+  }
+}
+
+/**
  * Get download URL for cloudflared based on platform
  */
 export function getCloudflaredDownloadUrl(): string {

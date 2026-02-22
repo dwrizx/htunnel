@@ -72,6 +72,9 @@ bun run start
 # dev mode (watch)
 bun run dev
 
+# new React frontend (Bun + Vite)
+bun run dev:web
+
 # help
 bun run help
 # or
@@ -83,6 +86,7 @@ Open:
 - Dashboard: `http://localhost:4000`
 - Help: `http://localhost:4000/help`
 - Install page: `http://localhost:4000/install`
+- React frontend: `http://localhost:5173`
 
 ## Environment Variables
 
@@ -131,6 +135,29 @@ Recommended flow:
 - During development: `bun run check:fast`
 - Before commit/PR: `bun run check`
 - To auto-fix style/lint issues: `bun run fix`
+
+Frontend checks/build:
+
+```bash
+bun run --cwd frontend check
+bun run --cwd frontend build
+```
+
+## New Frontend Stack (BunJS)
+
+The repo now includes a Bun-powered React frontend in `frontend/` with:
+
+- Vite `8.0.0-beta.15`
+- React `19.2.4` with React Compiler enabled (`babel-plugin-react-compiler`)
+- React Router `7.x`
+- Tailwind CSS `4.x` via `@tailwindcss/vite`
+- Zod `4.x` for runtime form validation
+- fbtee `1.7.x` for i18n (`@nkzw/babel-preset-fbtee`)
+
+Notes:
+
+- Vite 8 here is beta.
+- Existing Hono server-rendered UI stays available at `http://localhost:4000`.
 
 ## Provider Matrix
 

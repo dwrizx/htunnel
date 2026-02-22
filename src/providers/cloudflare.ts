@@ -40,8 +40,7 @@ export const cloudflareProvider: TunnelProvider = {
 
     // Determine tunnel mode
     const mode: CloudflareTunnelMode =
-      config.cloudflareMode ||
-      (config.token || ENV_TUNNEL_TOKEN ? "token" : "quick");
+      config.cloudflareMode || (config.token ? "token" : "quick");
 
     tunnel.logs.push(`Mode: ${getModeDescription(mode)}`);
 
@@ -113,14 +112,26 @@ async function startQuickTunnel(
   tunnel.logs.push(`Connecting to Cloudflare edge network...`);
 
   try {
-    const url = await waitForCloudflareUrl(proc.stderr, tunnel, 60000);
+    const stderrPair = proc.stderr?.tee();
+    const stdoutPair = proc.stdout?.tee();
+
+    const url = await waitForCloudflareUrlFromStreams(
+      [stderrPair?.[0] ?? null, stdoutPair?.[0] ?? null],
+      tunnel,
+      60000,
+    );
     tunnel.urls = [url];
     tunnel.status = "live";
     tunnel.logs.push(`Tunnel established!`);
     tunnel.logs.push(`URL: ${url}`);
 
-    // Continue monitoring stderr for errors
-    monitorStream(proc.stderr, tunnel);
+    // Continue monitoring output for post-connect warnings/errors
+    if (stderrPair?.[1]) {
+      void monitorStream(stderrPair[1], tunnel);
+    }
+    if (stdoutPair?.[1]) {
+      void monitorStream(stdoutPair[1], tunnel);
+    }
   } catch (error) {
     proc.kill();
     tunnel.logs.push(
@@ -584,111 +595,120 @@ async function waitForConnection(
 }
 
 /**
- * Wait for Cloudflare tunnel URL from stderr (for Quick Tunnel)
+ * Wait for Cloudflare URL from multiple streams (stdout/stderr).
  */
-async function waitForCloudflareUrl(
-  stream: ReadableStream<Uint8Array>,
+async function waitForCloudflareUrlFromStreams(
+  streams: Array<ReadableStream<Uint8Array> | null>,
   tunnel: TunnelInstance,
   timeoutMs: number,
 ): Promise<string> {
-  const decoder = new TextDecoder();
-  let buffer = "";
+  const activeStreams = streams.filter(
+    (stream): stream is ReadableStream<Uint8Array> => stream !== null,
+  );
+
+  if (activeStreams.length === 0) {
+    throw new Error("No cloudflared output stream available");
+  }
+
+  const findUrl = (text: string): string | null => {
+    const patterns = [
+      /\|\s*(https:\/\/[a-z0-9.-]+\.trycloudflare\.com)\s*\|/i,
+      /INF\s+(https:\/\/[a-z0-9.-]+\.trycloudflare\.com)/i,
+      /(https:\/\/[a-z0-9.-]+\.trycloudflare\.com)\b/i,
+      /(https:\/\/[a-z0-9.-]+\.cfargotunnel\.com)\b/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) {
+        return match[1];
+      }
+    }
+    return null;
+  };
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("Timeout waiting for tunnel URL"));
     }, timeoutMs);
 
-    const processChunk = async () => {
-      const reader = stream.getReader();
+    let settled = false;
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            clearTimeout(timeout);
-            reject(new Error("Stream ended without finding URL"));
-            return;
-          }
-
-          const chunk = decoder.decode(value, { stream: true });
-          buffer += chunk;
-
-          // Log progress messages
-          if (chunk.includes("Requesting new quick Tunnel")) {
-            tunnel.logs.push(`Requesting new quick Tunnel...`);
-          }
-          if (chunk.includes("Your quick Tunnel has been created")) {
-            tunnel.logs.push(`Quick Tunnel created, getting URL...`);
-          }
-          if (chunk.includes("Registered tunnel connection")) {
-            tunnel.logs.push(`Tunnel connection registered`);
-          }
-
-          // Pattern 1: URL in box format (most common for quick tunnels)
-          const boxUrlMatch = buffer.match(
-            /\|\s*(https:\/\/[a-z0-9-]+\.trycloudflare\.com)\s*\|/i,
-          );
-          if (boxUrlMatch && boxUrlMatch[1]) {
-            clearTimeout(timeout);
-            reader.releaseLock();
-            resolve(boxUrlMatch[1]);
-            return;
-          }
-
-          // Pattern 2: Direct URL in log line
-          const directUrlMatch = buffer.match(
-            /INF\s+(https:\/\/[a-z0-9-]+\.trycloudflare\.com)/i,
-          );
-          if (directUrlMatch && directUrlMatch[1]) {
-            clearTimeout(timeout);
-            reader.releaseLock();
-            resolve(directUrlMatch[1]);
-            return;
-          }
-
-          // Pattern 3: URL anywhere in output (fallback)
-          const anyUrlMatch = buffer.match(
-            /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i,
-          );
-          if (anyUrlMatch) {
-            await new Promise((r) => setTimeout(r, 1000));
-            clearTimeout(timeout);
-            reader.releaseLock();
-            resolve(anyUrlMatch[0]);
-            return;
-          }
-
-          // Pattern 4: cfargotunnel.com domain (for named tunnels)
-          const cfargotunnelMatch = buffer.match(
-            /https:\/\/[a-z0-9-]+\.cfargotunnel\.com/i,
-          );
-          if (cfargotunnelMatch) {
-            clearTimeout(timeout);
-            reader.releaseLock();
-            resolve(cfargotunnelMatch[0]);
-            return;
-          }
-
-          // Check for errors
-          if (
-            buffer.includes("failed to connect") ||
-            buffer.includes("error")
-          ) {
-            const errorMatch = buffer.match(/ERR[^\n]+/);
-            if (errorMatch) {
-              tunnel.logs.push(`[cloudflared] ${errorMatch[0]}`);
-            }
-          }
-        }
-      } catch (err) {
-        clearTimeout(timeout);
-        reader.releaseLock();
-        reject(err);
-      }
+    const settleResolve = (url: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(url);
     };
 
-    processChunk();
+    const settleReject = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(error);
+    };
+
+    let completed = 0;
+
+    activeStreams.forEach((stream) => {
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              completed += 1;
+              if (completed === activeStreams.length && !settled) {
+                settleReject(new Error("Stream ended without finding URL"));
+              }
+              return;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+
+            if (chunk.includes("Requesting new quick Tunnel")) {
+              tunnel.logs.push(`Requesting new quick Tunnel...`);
+            }
+            if (chunk.includes("Your quick Tunnel has been created")) {
+              tunnel.logs.push(`Quick Tunnel created, getting URL...`);
+            }
+            if (chunk.includes("Registered tunnel connection")) {
+              tunnel.logs.push(`Tunnel connection registered`);
+            }
+
+            const foundUrl = findUrl(buffer);
+            if (foundUrl) {
+              settleResolve(foundUrl);
+              return;
+            }
+
+            if (
+              buffer.includes("failed to connect") ||
+              buffer.includes("error")
+            ) {
+              const errorMatch = buffer.match(/ERR[^\n]+/);
+              if (errorMatch) {
+                tunnel.logs.push(`[cloudflared] ${errorMatch[0]}`);
+              }
+            }
+          }
+        } catch (error) {
+          settleReject(
+            error instanceof Error
+              ? error
+              : new Error("Failed while reading cloudflared output"),
+          );
+        } finally {
+          reader.releaseLock();
+        }
+      };
+
+      void processStream();
+    });
   });
 }
 
