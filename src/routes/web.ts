@@ -5,6 +5,7 @@ import {
   createForm,
   tunnelList,
   statsHeader,
+  dashboardOverview,
   installModal,
   PROVIDERS,
 } from "../views/components";
@@ -18,6 +19,7 @@ webRoutes.get("/", async (c) => {
   const providerStatuses = await checkAllProviders();
 
   const content = `
+    ${dashboardOverview(stats, providerStatuses)}
     ${createForm(providerStatuses)}
     <div class="bg-dark-800 rounded-2xl p-5 border border-dark-700 shadow-xl shadow-dark-900/50">
       ${statsHeader(stats)}

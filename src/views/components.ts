@@ -47,6 +47,142 @@ export function formatLogsHtml(logs: string[]): string {
   return formatLogs(logs);
 }
 
+function toJsSingleQuoted(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "");
+}
+
+function extractTunnelHost(tunnel: TunnelInstance): string {
+  for (const url of tunnel.urls) {
+    try {
+      const host = new URL(url).host;
+      if (host) return host;
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  const combined = `${tunnel.error || ""}\n${tunnel.logs.join("\n")}`;
+  const match = combined.match(
+    /[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(pinggy\.link|pinggy\.io)/i,
+  );
+  return match?.[0] || "";
+}
+
+type TunnelErrorSignals = {
+  viteBlockedHost: boolean;
+  localConnectionFailed: boolean;
+  missingCloudflared: boolean;
+  missingNgrok: boolean;
+};
+
+function getTunnelErrorSignals(tunnel: TunnelInstance): TunnelErrorSignals {
+  const errorText = (tunnel.error || "").toLowerCase();
+  const logsText = tunnel.logs.join("\n").toLowerCase();
+  const combined = `${errorText}\n${logsText}`;
+
+  return {
+    viteBlockedHost:
+      combined.includes("blocked request") ||
+      combined.includes("allowedhosts") ||
+      combined.includes("this host is not allowed"),
+    localConnectionFailed:
+      combined.includes("connection refused") ||
+      combined.includes("failed to connect"),
+    missingCloudflared:
+      tunnel.config.provider === "cloudflare" &&
+      (combined.includes("enoent") ||
+        combined.includes("cloudflared") ||
+        combined.includes("not found")),
+    missingNgrok:
+      tunnel.config.provider === "ngrok" &&
+      (combined.includes("enoent") ||
+        combined.includes("ngrok") ||
+        combined.includes("not found")),
+  };
+}
+
+function getTunnelErrorHints(tunnel: TunnelInstance): string[] {
+  const errorText = (tunnel.error || "").toLowerCase();
+  const logsText = tunnel.logs.join("\n").toLowerCase();
+  const combined = `${errorText}\n${logsText}`;
+  const signals = getTunnelErrorSignals(tunnel);
+  const hints: string[] = [];
+
+  const pushHint = (hint: string) => {
+    if (!hints.includes(hint)) {
+      hints.push(hint);
+    }
+  };
+
+  if (signals.viteBlockedHost) {
+    pushHint(
+      `Vite host allowlist issue: add your tunnel host to allowedHosts in vite.config.ts (server + preview).`,
+    );
+  }
+
+  if (signals.localConnectionFailed) {
+    pushHint(
+      `Your local app may not be running on ${tunnel.config.localHost}:${tunnel.config.localPort}. Start the app and retry.`,
+    );
+  }
+
+  if (
+    combined.includes("eaddrinuse") ||
+    combined.includes("address already in use")
+  ) {
+    pushHint(
+      `Port conflict detected. Change local port or stop the process using that port.`,
+    );
+  }
+
+  if (
+    combined.includes("invalid token") ||
+    combined.includes("authtoken") ||
+    combined.includes("unauthorized") ||
+    combined.includes("authentication failed")
+  ) {
+    pushHint(
+      `Authentication failed. Re-check token in form or environment variable for this provider.`,
+    );
+  }
+
+  if (combined.includes("could not resolve host") || combined.includes("dns")) {
+    pushHint(
+      `DNS/network issue detected. Wait a few seconds, then retry and verify internet connectivity.`,
+    );
+  }
+
+  if (combined.includes("timeout") || combined.includes("timed out")) {
+    pushHint(
+      `Timeout while establishing tunnel. Retry and check firewall/proxy/network restrictions.`,
+    );
+  }
+
+  if (signals.missingCloudflared) {
+    pushHint(
+      `cloudflared CLI is required. Install it from /install page or provider documentation.`,
+    );
+  }
+
+  if (signals.missingNgrok) {
+    pushHint(
+      `ngrok CLI is required. Install ngrok and configure your authtoken, then retry.`,
+    );
+  }
+
+  if (tunnel.config.provider === "pinggy") {
+    pushHint(
+      `For API/webhooks via Pinggy, include header: X-Pinggy-No-Screen: true.`,
+    );
+  }
+
+  return hints;
+}
+
 export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
   pinggy: {
     name: "Pinggy",
@@ -197,18 +333,18 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
       return `
       <label class="provider-card cursor-pointer group relative" data-provider="${key}" data-installed="${isInstalled}" onclick="selectProvider('${key}')">
         <input type="radio" name="provider" value="${key}" class="peer sr-only" ${i === 0 ? "checked" : ""} ${needsInstall ? 'data-needs-install="true"' : ""}>
-        <div class="p-3 rounded-xl bg-dark-800 border-2 border-dark-700 peer-checked:border-violet-500 peer-checked:bg-dark-700/50 transition-all ${needsInstall ? "opacity-60" : ""}">
+        <div id="provider-card-${key}" class="p-3 rounded-xl bg-dark-800 border-2 border-dark-700 peer-checked:border-violet-500 peer-checked:bg-dark-700/50 transition-all ${needsInstall ? "opacity-60" : ""}">
           <div class="flex items-start justify-between mb-2">
             <div class="size-9 rounded-lg bg-gradient-to-br ${info.color} flex items-center justify-center text-white shadow-lg">${info.icon}</div>
             ${
               isInstalled
                 ? `
-              <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/20 text-emerald-400">
+              <span id="provider-badge-${key}" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/20 text-emerald-400">
                 <svg class="size-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                 Ready
               </span>`
                 : `
-              <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-400">
+              <span id="provider-badge-${key}" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-400">
                 <svg class="size-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 Install
               </span>`
@@ -216,7 +352,7 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
           </div>
           <p class="font-medium text-sm">${info.name}</p>
           <p class="text-[10px] text-gray-500 line-clamp-2">${info.description}</p>
-          ${status?.version ? `<p class="text-[9px] text-gray-600 mt-1">v${status.version}</p>` : ""}
+          <p id="provider-version-${key}" class="text-[9px] text-gray-600 mt-1">${status?.version ? `v${status.version}` : ""}</p>
         </div>
         ${
           needsInstall
@@ -525,6 +661,35 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
           localStorage.removeItem(storageKey);
         }
       }
+
+      function prefillTunnelForm(provider, host, port) {
+        const providerInput = document.querySelector('input[name="provider"][value="' + provider + '"]');
+        if (providerInput) {
+          providerInput.checked = true;
+          selectProvider(provider);
+        }
+
+        const hostInput = document.querySelector('input[name="localHost"]');
+        const portInput = document.querySelector('input[name="localPort"]');
+        if (hostInput && host) hostInput.value = host;
+        if (portInput && port) portInput.value = String(port);
+
+        const nameInput = document.querySelector('input[name="name"]');
+        if (nameInput && !nameInput.value) {
+          nameInput.value = provider + '-retry';
+        }
+
+        const form = document.getElementById('tunnel-form');
+        form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      async function copySnippet(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // Clipboard may fail in some contexts; no hard failure
+        }
+      }
       
       // Save on form submit
       document.getElementById('tunnel-form')?.addEventListener('submit', function() {
@@ -543,7 +708,63 @@ export function createForm(providerStatuses: ProviderStatus[]): string {
       });
       
       // Initialize with first provider
-      document.addEventListener('DOMContentLoaded', () => selectProvider('pinggy'));
+      document.addEventListener('DOMContentLoaded', () => {
+        selectProvider('pinggy');
+        refreshProviderStatuses();
+        setInterval(refreshProviderStatuses, 10000);
+      });
+
+      async function refreshProviderStatuses() {
+        try {
+          const response = await fetch('/api/providers/status');
+          if (!response.ok) return;
+
+          const statuses = await response.json();
+          statuses.forEach(status => {
+            const key = status.provider;
+            const installed = Boolean(status.installed);
+            const version = status.version ? 'v' + status.version : '';
+
+            const card = document.getElementById('provider-card-' + key);
+            const badge = document.getElementById('provider-badge-' + key);
+            const versionEl = document.getElementById('provider-version-' + key);
+            const input = document.querySelector('input[name="provider"][value="' + key + '"]');
+            if (!card || !badge || !input) return;
+
+            const label = input.closest('label');
+            if (label) {
+              label.dataset.installed = String(installed);
+            }
+
+            input.dataset.needsInstall = installed ? 'false' : 'true';
+            card.classList.toggle('opacity-60', !installed);
+
+            if (installed) {
+              badge.className = 'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/20 text-emerald-400';
+              badge.innerHTML = '<svg class="size-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Ready';
+            } else {
+              badge.className = 'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-400';
+              badge.innerHTML = '<svg class="size-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>Install';
+            }
+
+            if (versionEl) {
+              versionEl.textContent = version;
+            }
+          });
+
+          const selected = document.querySelector('input[name="provider"]:checked');
+          if (selected) {
+            const warning = document.getElementById('install-warning');
+            if (selected.dataset.needsInstall === 'true') {
+              warning?.classList.remove('hidden');
+            } else {
+              warning?.classList.add('hidden');
+            }
+          }
+        } catch {
+          // keep UI stable when refresh fails
+        }
+      }
     </script>`;
 }
 
@@ -630,6 +851,12 @@ export function tunnelCard(tunnel: TunnelInstance): string {
       pinggyHost = "";
     }
   }
+  const detectedHost = pinggyHost || extractTunnelHost(tunnel);
+  const errorHints = tunnel.error ? getTunnelErrorHints(tunnel) : [];
+  const errorSignals = tunnel.error ? getTunnelErrorSignals(tunnel) : null;
+  const viteSnippet = detectedHost
+    ? `server: { allowedHosts: ["${detectedHost}", ".pinggy.link", ".pinggy.io"] },\npreview: { allowedHosts: ["${detectedHost}", ".pinggy.link", ".pinggy.io"] },`
+    : "";
 
   return `
     <div class="tunnel-item bg-dark-800 rounded-xl border border-dark-700 overflow-hidden ${tunnel.status === "live" ? "border-l-2 border-l-emerald-500" : tunnel.status === "error" ? "border-l-2 border-l-red-500" : tunnel.status === "starting" ? "border-l-2 border-l-amber-500" : ""}">
@@ -852,6 +1079,36 @@ preview: { allowedHosts: ["${pinggyHost}", ".pinggy.link", ".pinggy.io"] },</cod
             <div>
               <p class="text-xs text-red-400 font-medium">Error</p>
               <p class="text-xs text-red-400/80 mt-0.5">${tunnel.error}</p>
+              ${
+                errorHints.length > 0
+                  ? `
+              <div class="mt-2 rounded-lg border border-red-500/20 bg-dark-900/50 p-2">
+                <p class="text-[10px] font-medium text-amber-300">Suggested fixes</p>
+                <ul class="mt-1 space-y-1 text-[10px] text-gray-300">
+                  ${errorHints.map((hint) => `<li>&bull; ${hint}</li>`).join("")}
+                </ul>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <button type="button" hx-post="/api/tunnels/${tunnel.config.id}/restart" hx-target="closest .tunnel-item" hx-swap="outerHTML" class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+                    Retry Now
+                  </button>
+                  <button type="button" onclick="prefillTunnelForm('${tunnel.config.provider}', '${tunnel.config.localHost}', ${tunnel.config.localPort})" class="rounded-md border border-violet-500/40 bg-violet-500/10 px-2 py-1 text-[10px] text-violet-300 hover:bg-violet-500/20 transition-colors">
+                    Prefill Form
+                  </button>
+                  ${
+                    errorSignals?.viteBlockedHost && viteSnippet
+                      ? `<button type="button" onclick="copySnippet('${toJsSingleQuoted(viteSnippet)}')" class="rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] text-sky-300 hover:bg-sky-500/20 transition-colors">Copy Vite Config</button>`
+                      : ""
+                  }
+                  ${
+                    errorSignals?.missingCloudflared ||
+                    errorSignals?.missingNgrok
+                      ? `<a href="/install" class="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300 hover:bg-amber-500/20 transition-colors">Open Install Page</a>`
+                      : ""
+                  }
+                </div>
+              </div>`
+                  : ""
+              }
             </div>
           </div>
         </div>`
@@ -900,7 +1157,58 @@ export function tunnelList(tunnels: TunnelInstance[]): string {
   return tunnels.map(tunnelCard).join("");
 }
 
-export function statsHeader(stats: { total: number; live: number }) {
+export function dashboardOverview(
+  stats: { total: number; live: number; error: number; closed: number },
+  providerStatuses: ProviderStatus[],
+): string {
+  const readyProviders = providerStatuses.filter((s) => s.installed).length;
+  const notReadyProviders = providerStatuses.length - readyProviders;
+  const healthTone =
+    stats.error > 0
+      ? "text-amber-300 border-amber-500/30 bg-amber-500/10"
+      : "text-emerald-300 border-emerald-500/30 bg-emerald-500/10";
+  const healthText =
+    stats.error > 0
+      ? `${stats.error} tunnel needs attention`
+      : "All active tunnels healthy";
+
+  return `
+    <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div class="rounded-xl border border-dark-700 bg-dark-800/70 p-3">
+        <p class="text-[10px] uppercase tracking-wider text-gray-500">Total Tunnels</p>
+        <p class="mt-1 text-xl font-semibold">${stats.total}</p>
+      </div>
+      <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+        <p class="text-[10px] uppercase tracking-wider text-emerald-300/70">Live</p>
+        <p class="mt-1 text-xl font-semibold text-emerald-300">${stats.live}</p>
+      </div>
+      <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+        <p class="text-[10px] uppercase tracking-wider text-red-300/70">Errors</p>
+        <p class="mt-1 text-xl font-semibold text-red-300">${stats.error}</p>
+      </div>
+      <div class="rounded-xl border border-dark-700 bg-dark-800/70 p-3">
+        <p class="text-[10px] uppercase tracking-wider text-gray-500">Providers Ready</p>
+        <p class="mt-1 text-xl font-semibold">${readyProviders}/${providerStatuses.length}</p>
+        ${
+          notReadyProviders > 0
+            ? `<p class="mt-1 text-[10px] text-amber-300">${notReadyProviders} need install</p>`
+            : `<p class="mt-1 text-[10px] text-emerald-300">All providers available</p>`
+        }
+      </div>
+      <div class="col-span-2 rounded-xl border px-3 py-3 lg:col-span-1 ${healthTone}">
+        <p class="text-[10px] uppercase tracking-wider opacity-80">System Health</p>
+        <p class="mt-1 text-sm font-medium">${healthText}</p>
+      </div>
+    </div>
+  `;
+}
+
+export function statsHeader(stats: {
+  total: number;
+  live: number;
+  error: number;
+  closed: number;
+}) {
   return `
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-base font-semibold">Tunnels</h2>
@@ -910,6 +1218,9 @@ export function statsHeader(stats: { total: number; live: number }) {
           <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
           ${stats.live} live
         </span>
+        <span class="text-red-400">${stats.error} error</span>
+        <span class="text-gray-500">${stats.closed} closed</span>
+        <span class="hidden sm:inline text-gray-600">Auto-refresh 5s</span>
       </div>
     </div>`;
 }

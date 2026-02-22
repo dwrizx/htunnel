@@ -38,9 +38,14 @@ export function layout(content: string, title = "Hades Tunnel"): string {
   </style>
 </head>
 <body class="bg-dark-900 text-gray-100 min-h-screen antialiased">
-  <div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-24 -left-24 size-72 rounded-full bg-violet-500/10 blur-3xl"></div>
+    <div class="absolute top-1/3 -right-24 size-80 rounded-full bg-cyan-500/10 blur-3xl"></div>
+    <div class="absolute -bottom-24 left-1/3 size-96 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
+  </div>
+  <div class="max-w-6xl mx-auto px-4 py-8">
     <header class="mb-8">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between rounded-2xl border border-dark-700/80 bg-dark-800/70 px-4 py-3 backdrop-blur-sm">
         <div class="flex items-center gap-3">
           <div class="size-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20 pulse-glow">
             <svg class="size-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,10 +54,14 @@ export function layout(content: string, title = "Hades Tunnel"): string {
           </div>
           <div>
             <h1 class="text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Hades Tunnel</h1>
-            <p class="text-xs text-gray-500">Multi-provider tunnel manager</p>
+            <p class="text-xs text-gray-500">Multi-provider tunnel manager for local development</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <span class="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-300">
+            <span class="size-1.5 rounded-full bg-emerald-400"></span>
+            Active Monitoring
+          </span>
           <a href="/help" class="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white">
             <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
