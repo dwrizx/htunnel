@@ -17,7 +17,7 @@ export interface TunnelConfig {
   // Cloudflare specific
   cloudflareMode?: CloudflareTunnelMode;
   cloudflareTunnelName?: string; // For local mode - tunnel name
-  cloudflareDomain?: string;     // For local mode - your-app.yourdomain.com
+  cloudflareDomain?: string; // For local mode - your-app.yourdomain.com
 }
 
 export interface TunnelInstance {

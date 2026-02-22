@@ -1,4 +1,9 @@
-import type { TunnelInstance, TunnelProvider, ProviderInfo, ProviderStatus } from "../types";
+import type {
+  TunnelInstance,
+  TunnelProvider,
+  ProviderInfo,
+  ProviderStatus,
+} from "../types";
 
 // Helper functions
 function formatUptime(ms: number): string {
@@ -11,24 +16,31 @@ function formatUptime(ms: number): string {
 }
 
 function formatLogs(logs: string[]): string {
-  if (!logs || logs.length === 0) return '<span class="text-gray-600">Waiting for output...</span>';
-  return logs.map(log => {
-    if (log.startsWith('$')) {
-      return `<div class="text-emerald-400">${escapeHtml(log)}</div>`;
-    } else if (log.startsWith('ERROR')) {
-      return `<div class="text-red-400">${escapeHtml(log)}</div>`;
-    } else if (log.startsWith('URL:')) {
-      return `<div class="text-violet-400">${escapeHtml(log)}</div>`;
-    } else if (log.includes('established') || log.includes('successfully')) {
-      return `<div class="text-emerald-400">${escapeHtml(log)}</div>`;
-    } else {
-      return `<div class="text-gray-400">${escapeHtml(log)}</div>`;
-    }
-  }).join('');
+  if (!logs || logs.length === 0)
+    return '<span class="text-gray-600">Waiting for output...</span>';
+  return logs
+    .map((log) => {
+      if (log.startsWith("$")) {
+        return `<div class="text-emerald-400">${escapeHtml(log)}</div>`;
+      } else if (log.startsWith("ERROR")) {
+        return `<div class="text-red-400">${escapeHtml(log)}</div>`;
+      } else if (log.startsWith("URL:")) {
+        return `<div class="text-violet-400">${escapeHtml(log)}</div>`;
+      } else if (log.includes("established") || log.includes("successfully")) {
+        return `<div class="text-emerald-400">${escapeHtml(log)}</div>`;
+      } else {
+        return `<div class="text-gray-400">${escapeHtml(log)}</div>`;
+      }
+    })
+    .join("");
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function formatLogsHtml(logs: string[]): string {
@@ -40,27 +52,18 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
     name: "Pinggy",
     color: "from-sky-500 to-cyan-400",
     icon: `<svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>`,
-    description: "Free SSH tunnel, Pro for persistent URLs",
-    features: ["No installation", "Free tier", "Pro: persistent URL", "SSH-based"],
+    description: "Fast public tunnel with optional token authentication",
+    features: ["No installation", "Free tier", "Token auth", "HTTP/TCP"],
     requiresAuth: false,
     authField: {
       name: "token",
-      label: "Pinggy Pro Token",
-      placeholder: "e.g. BRh2qz1Xm6z (leave empty for free)",
+      label: "Pinggy Token (Optional)",
+      placeholder: "e.g. tk_xxxxx (leave empty for free mode)",
       type: "text",
       required: false,
-      helpText: "Token from dashboard.pinggy.io (or set PINGGY_TOKEN in .env)"
+      helpText:
+        "Optional token from dashboard.pinggy.io for authenticated/persistent tunnels.",
     },
-    extraFields: [
-      {
-        name: "pinggyPassword",
-        label: "Pinggy Pro Password",
-        placeholder: "Your Pinggy password",
-        type: "password",
-        required: false,
-        helpText: "Password from dashboard.pinggy.io (or set PINGGY_PASSWORD in .env)"
-      }
-    ],
     docsUrl: "https://pinggy.io/docs/",
   },
   cloudflare: {
@@ -68,7 +71,12 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
     color: "from-orange-500 to-amber-400",
     icon: `<svg class="size-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16.5088 16.8447c.1475-.5068.0908-.9707-.1553-1.2678-.2246-.2793-.5732-.4268-.9834-.4473l-8.1572-.1123c-.0654-.0039-.1123-.0215-.1416-.0537-.0283-.0303-.0381-.0703-.0263-.1113.0205-.0703.0859-.127.1533-.127l8.2666-.1132c.8809-.0303 1.8027-.752 2.0889-1.6455l.3496-1.0898c.0146-.0478.0146-.0957.0156-.1435.0019-.0429-.0117-.085-.0166-.127-.4482-2.9297-3.0313-5.166-6.1621-5.166-3.457 0-6.2676 2.8008-6.2676 6.2568 0 .1983.0234.3925.0361.5878-.7832-.0303-1.5039.2442-2.0566.7569-.5908.5489-.9316 1.3291-.9316 2.1308 0 .1221.0088.2432.0254.3633h.0039c.0058.0322.0205.0634.0459.0868l.084.0732h13.0459c.0771 0 .1484-.0527.1699-.127l.2686-.8584z"/></svg>`,
     description: "Enterprise-grade tunnels with 3 modes",
-    features: ["Quick tunnel", "Local tunnel", "Token tunnel", "DDoS protection"],
+    features: [
+      "Quick tunnel",
+      "Local tunnel",
+      "Token tunnel",
+      "DDoS protection",
+    ],
     requiresCli: "cloudflared",
     requiresAuth: false,
     authField: {
@@ -77,7 +85,8 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
       placeholder: "Select tunnel mode",
       type: "text",
       required: false,
-      helpText: "Quick: instant temporary URL | Local: persistent with your domain | Token: managed via Dashboard"
+      helpText:
+        "Quick: instant temporary URL | Local: persistent with your domain | Token: managed via Dashboard",
     },
     extraFields: [
       {
@@ -86,7 +95,8 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
         placeholder: "eyJhIjoiNzI0NGQ1NTg5NDdiZTJmY2Y5ZGJlMmY5NGNiNmY1ZDIi...",
         type: "password",
         required: false,
-        helpText: "Get from Cloudflare Zero Trust Dashboard → Networks → Tunnels → Create → Cloudflared connector"
+        helpText:
+          "Get from Cloudflare Zero Trust Dashboard → Networks → Tunnels → Create → Cloudflared connector",
       },
       {
         name: "cloudflareTunnelName",
@@ -94,7 +104,8 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
         placeholder: "my-app-tunnel",
         type: "text",
         required: false,
-        helpText: "Persistent tunnel name for local mode. Will create if doesn't exist."
+        helpText:
+          "Persistent tunnel name for local mode. Will create if doesn't exist.",
       },
       {
         name: "cloudflareDomain",
@@ -102,22 +113,30 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
         placeholder: "app.yourdomain.com",
         type: "text",
         required: false,
-        helpText: "Your domain (must be registered in Cloudflare). Leave empty for cfargotunnel.com subdomain."
-      }
+        helpText:
+          "Your domain (must be registered in Cloudflare). Leave empty for cfargotunnel.com subdomain.",
+      },
     ],
     installCommands: {
-      linux: "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared && chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/",
+      linux:
+        "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared && chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/",
       macos: "brew install cloudflared",
       windows: "winget install --id Cloudflare.cloudflared",
     },
-    docsUrl: "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/",
+    docsUrl:
+      "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/",
   },
   ngrok: {
     name: "ngrok",
     color: "from-emerald-500 to-green-400",
     icon: `<svg class="size-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
     description: "Most popular, with web inspector dashboard",
-    features: ["Web inspector", "Replay requests", "Request history", "localhost:4040"],
+    features: [
+      "Web inspector",
+      "Replay requests",
+      "Request history",
+      "localhost:4040",
+    ],
     requiresCli: "ngrok",
     requiresAuth: true,
     authField: {
@@ -126,10 +145,12 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
       placeholder: "Get from dashboard.ngrok.com/get-started/your-authtoken",
       type: "password",
       required: false,
-      helpText: "Get free authtoken from ngrok.com (or set NGROK_AUTHTOKEN in .env). Saved to browser."
+      helpText:
+        "Get free authtoken from ngrok.com (or set NGROK_AUTHTOKEN in .env). Saved to browser.",
     },
     installCommands: {
-      linux: "curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo 'deb https://ngrok-agent.s3.amazonaws.com buster main' | sudo tee /etc/apt/sources.list.d/ngrok.list && sudo apt update && sudo apt install ngrok",
+      linux:
+        "curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo 'deb https://ngrok-agent.s3.amazonaws.com buster main' | sudo tee /etc/apt/sources.list.d/ngrok.list && sudo apt update && sudo apt install ngrok",
       macos: "brew install ngrok/ngrok/ngrok",
       windows: "choco install ngrok",
     },
@@ -140,7 +161,12 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
     color: "from-violet-500 to-purple-400",
     icon: `<svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>`,
     description: "Free tunnel with auto-detected password",
-    features: ["No installation", "Custom subdomain", "Auto password", "Via npx"],
+    features: [
+      "No installation",
+      "Custom subdomain",
+      "Auto password",
+      "Via npx",
+    ],
     requiresAuth: false,
     extraFields: [
       {
@@ -149,61 +175,77 @@ export const PROVIDERS: Record<TunnelProvider, ProviderInfo> = {
         placeholder: "my-app",
         type: "text",
         required: false,
-        helpText: "Your tunnel will be at: my-app.loca.lt (password auto-detected)"
-      }
+        helpText:
+          "Your tunnel will be at: my-app.loca.lt (password auto-detected)",
+      },
     ],
     docsUrl: "https://github.com/localtunnel/localtunnel",
   },
 };
 
 export function createForm(providerStatuses: ProviderStatus[]): string {
-  const statusMap = new Map(providerStatuses.map(s => [s.provider, s]));
-  
-  const providerOptions = (Object.entries(PROVIDERS) as [TunnelProvider, ProviderInfo][])
+  const statusMap = new Map(providerStatuses.map((s) => [s.provider, s]));
+
+  const providerOptions = (
+    Object.entries(PROVIDERS) as [TunnelProvider, ProviderInfo][]
+  )
     .map(([key, info], i) => {
       const status = statusMap.get(key);
       const isInstalled = status?.installed ?? true;
       const needsInstall = info.requiresCli && !isInstalled;
-      
+
       return `
       <label class="provider-card cursor-pointer group relative" data-provider="${key}" data-installed="${isInstalled}" onclick="selectProvider('${key}')">
-        <input type="radio" name="provider" value="${key}" class="peer sr-only" ${i === 0 ? "checked" : ""} ${needsInstall ? 'data-needs-install="true"' : ''}>
-        <div class="p-3 rounded-xl bg-dark-800 border-2 border-dark-700 peer-checked:border-violet-500 peer-checked:bg-dark-700/50 transition-all ${needsInstall ? 'opacity-60' : ''}">
+        <input type="radio" name="provider" value="${key}" class="peer sr-only" ${i === 0 ? "checked" : ""} ${needsInstall ? 'data-needs-install="true"' : ""}>
+        <div class="p-3 rounded-xl bg-dark-800 border-2 border-dark-700 peer-checked:border-violet-500 peer-checked:bg-dark-700/50 transition-all ${needsInstall ? "opacity-60" : ""}">
           <div class="flex items-start justify-between mb-2">
             <div class="size-9 rounded-lg bg-gradient-to-br ${info.color} flex items-center justify-center text-white shadow-lg">${info.icon}</div>
-            ${isInstalled ? `
+            ${
+              isInstalled
+                ? `
               <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/20 text-emerald-400">
                 <svg class="size-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                 Ready
-              </span>` : `
+              </span>`
+                : `
               <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-400">
                 <svg class="size-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 Install
-              </span>`}
+              </span>`
+            }
           </div>
           <p class="font-medium text-sm">${info.name}</p>
           <p class="text-[10px] text-gray-500 line-clamp-2">${info.description}</p>
-          ${status?.version ? `<p class="text-[9px] text-gray-600 mt-1">v${status.version}</p>` : ''}
+          ${status?.version ? `<p class="text-[9px] text-gray-600 mt-1">v${status.version}</p>` : ""}
         </div>
-        ${needsInstall ? `
+        ${
+          needsInstall
+            ? `
           <button type="button" onclick="event.preventDefault(); event.stopPropagation(); showInstallModal('${key}')" 
             class="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
             <span class="px-3 py-1.5 bg-violet-500 rounded-lg text-xs font-medium">Install ${info.name}</span>
-          </button>` : ''}
+          </button>`
+            : ""
+        }
       </label>
-    `}).join("");
+    `;
+    })
+    .join("");
 
   const providersDataJson = JSON.stringify(
     Object.fromEntries(
-      Object.entries(PROVIDERS).map(([k, v]) => [k, { 
-        name: v.name, 
-        features: v.features,
-        requiresAuth: v.requiresAuth,
-        authField: v.authField,
-        extraFields: v.extraFields,
-        docsUrl: v.docsUrl
-      }])
-    )
+      Object.entries(PROVIDERS).map(([k, v]) => [
+        k,
+        {
+          name: v.name,
+          features: v.features,
+          requiresAuth: v.requiresAuth,
+          authField: v.authField,
+          extraFields: v.extraFields,
+          docsUrl: v.docsUrl,
+        },
+      ]),
+    ),
   );
 
   return `
@@ -550,14 +592,32 @@ export function installModal(): string {
 export function tunnelCard(tunnel: TunnelInstance): string {
   const info = PROVIDERS[tunnel.config.provider];
   const statusConfig = {
-    starting: { color: "bg-amber-500", text: "Starting", icon: `<svg class="animate-spin size-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>` },
-    live: { color: "bg-emerald-500", text: "Live", icon: `<span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>` },
-    closed: { color: "bg-gray-500", text: "Closed", icon: `<span class="size-1.5 rounded-full bg-gray-500"></span>` },
-    error: { color: "bg-red-500", text: "Error", icon: `<svg class="size-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>` },
+    starting: {
+      color: "bg-amber-500",
+      text: "Starting",
+      icon: `<svg class="animate-spin size-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>`,
+    },
+    live: {
+      color: "bg-emerald-500",
+      text: "Live",
+      icon: `<span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>`,
+    },
+    closed: {
+      color: "bg-gray-500",
+      text: "Closed",
+      icon: `<span class="size-1.5 rounded-full bg-gray-500"></span>`,
+    },
+    error: {
+      color: "bg-red-500",
+      text: "Error",
+      icon: `<svg class="size-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    },
   };
   const status = statusConfig[tunnel.status];
   const pid = tunnel.process?.pid;
-  const uptime = tunnel.startedAt ? formatUptime(new Date().getTime() - tunnel.startedAt.getTime()) : '';
+  const uptime = tunnel.startedAt
+    ? formatUptime(new Date().getTime() - tunnel.startedAt.getTime())
+    : "";
 
   return `
     <div class="tunnel-item bg-dark-800 rounded-xl border border-dark-700 overflow-hidden ${tunnel.status === "live" ? "border-l-2 border-l-emerald-500" : tunnel.status === "error" ? "border-l-2 border-l-red-500" : tunnel.status === "starting" ? "border-l-2 border-l-amber-500" : ""}">
@@ -570,13 +630,13 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               <h3 class="font-semibold text-base">${tunnel.config.name}</h3>
               <p class="text-xs text-gray-500">${info.name} &bull; ${tunnel.config.localHost}:${tunnel.config.localPort}</p>
               <div class="flex items-center gap-2 mt-1">
-                ${pid ? `<span class="text-[10px] text-gray-600 bg-dark-700 px-1.5 py-0.5 rounded">PID: ${pid}</span>` : ''}
-                ${uptime && tunnel.status === 'live' ? `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Uptime: ${uptime}</span>` : ''}
+                ${pid ? `<span class="text-[10px] text-gray-600 bg-dark-700 px-1.5 py-0.5 rounded">PID: ${pid}</span>` : ""}
+                ${uptime && tunnel.status === "live" ? `<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Uptime: ${uptime}</span>` : ""}
               </div>
             </div>
           </div>
           <div class="flex flex-col items-end gap-2">
-            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}/20 text-white border border-${status.color.replace('bg-', '')}/30">
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}/20 text-white border border-${status.color.replace("bg-", "")}/30">
               ${status.icon}
               ${status.text}
             </span>
@@ -599,16 +659,20 @@ export function tunnelCard(tunnel: TunnelInstance): string {
             <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
         </div>
-        <div id="terminal-${tunnel.config.id}" class="p-3 font-mono text-[11px] leading-relaxed max-h-32 overflow-y-auto ${tunnel.status === 'starting' ? '' : 'max-h-24'}" ${tunnel.status === 'starting' ? 'hx-get="/api/tunnels/' + tunnel.config.id + '/logs" hx-trigger="every 1s" hx-swap="innerHTML"' : ''}>
+        <div id="terminal-${tunnel.config.id}" class="p-3 font-mono text-[11px] leading-relaxed max-h-32 overflow-y-auto ${tunnel.status === "starting" ? "" : "max-h-24"}" ${tunnel.status === "starting" ? 'hx-get="/api/tunnels/' + tunnel.config.id + '/logs" hx-trigger="every 1s" hx-swap="innerHTML"' : ""}>
           ${formatLogs(tunnel.logs)}
         </div>
       </div>
 
       <!-- Content -->
       <div class="p-4">
-      ${tunnel.urls.length > 0 ? `
+      ${
+        tunnel.urls.length > 0
+          ? `
         <div class="mb-3 space-y-1.5">
-          ${tunnel.urls.map(url => `
+          ${tunnel.urls
+            .map(
+              (url) => `
             <div class="flex items-center gap-2 bg-dark-700/50 rounded-lg px-3 py-2 border border-dark-600">
               <svg class="size-3.5 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -621,9 +685,13 @@ export function tunnelCard(tunnel: TunnelInstance): string {
                 <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
               </a>
             </div>
-          `).join("")}
+          `,
+            )
+            .join("")}
         </div>
-        ${tunnel.config.provider === "pinggy" && tunnel.extraInfo?.bypassHeader ? `
+        ${
+          tunnel.config.provider === "pinggy" && tunnel.extraInfo?.bypassHeader
+            ? `
         <div class="mb-3 p-3 bg-sky-500/10 border border-sky-500/20 rounded-lg">
           <div class="flex items-start gap-2">
             <svg class="size-4 text-sky-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -650,8 +718,12 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               </details>
             </div>
           </div>
-        </div>` : ''}
-        ${tunnel.config.provider === "ngrok" && tunnel.extraInfo?.dashboard ? `
+        </div>`
+            : ""
+        }
+        ${
+          tunnel.config.provider === "ngrok" && tunnel.extraInfo?.dashboard
+            ? `
         <div class="mb-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
           <div class="flex items-start gap-2">
             <svg class="size-4 text-emerald-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -666,8 +738,12 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               </a>
             </div>
           </div>
-        </div>` : ''}
-        ${tunnel.config.provider === "cloudflare" && tunnel.extraInfo?.mode ? `
+        </div>`
+            : ""
+        }
+        ${
+          tunnel.config.provider === "cloudflare" && tunnel.extraInfo?.mode
+            ? `
         <div class="mb-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
           <div class="flex items-start gap-2">
             <svg class="size-4 text-orange-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
@@ -675,12 +751,16 @@ export function tunnelCard(tunnel: TunnelInstance): string {
             </svg>
             <div class="flex-1">
               <p class="text-xs text-orange-400 font-medium mb-1">Cloudflare Tunnel</p>
-              <p class="text-[10px] text-orange-400/70 mb-2">${tunnel.extraInfo.mode}: ${tunnel.extraInfo.note || ''}</p>
-              ${tunnel.extraInfo.dashboard ? `
+              <p class="text-[10px] text-orange-400/70 mb-2">${tunnel.extraInfo.mode}: ${tunnel.extraInfo.note || ""}</p>
+              ${
+                tunnel.extraInfo.dashboard
+                  ? `
               <a href="${tunnel.extraInfo.dashboard}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg text-xs text-orange-400 transition-colors">
                 <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                 Zero Trust Dashboard
-              </a>` : ''}
+              </a>`
+                  : ""
+              }
               <details class="text-[10px] mt-2">
                 <summary class="text-orange-400/60 cursor-pointer hover:text-orange-400">Usage tips</summary>
                 <div class="mt-2 p-2 bg-dark-800 rounded text-gray-400 space-y-1">
@@ -692,8 +772,12 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               </details>
             </div>
           </div>
-        </div>` : ''}
-        ${tunnel.password ? `
+        </div>`
+            : ""
+        }
+        ${
+          tunnel.password
+            ? `
         <div class="mb-3 p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
           <div class="flex items-start gap-2">
             <svg class="size-4 text-violet-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -723,14 +807,22 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               </details>
             </div>
           </div>
-        </div>` : ''}` : tunnel.status === "starting" ? `
+        </div>`
+            : ""
+        }`
+          : tunnel.status === "starting"
+            ? `
         <div class="mb-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <div class="flex items-center gap-2">
             <svg class="animate-spin size-4 text-amber-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             <p class="text-xs text-amber-400">Establishing tunnel connection...</p>
           </div>
-        </div>` : ""}
-      ${tunnel.error ? `
+        </div>`
+            : ""
+      }
+      ${
+        tunnel.error
+          ? `
         <div class="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
           <div class="flex items-start gap-2">
             <svg class="size-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -741,19 +833,29 @@ export function tunnelCard(tunnel: TunnelInstance): string {
               <p class="text-xs text-red-400/80 mt-0.5">${tunnel.error}</p>
             </div>
           </div>
-        </div>` : ""}
+        </div>`
+          : ""
+      }
       <div class="flex gap-2">
-        ${tunnel.status === "live" ? `
+        ${
+          tunnel.status === "live"
+            ? `
           <button hx-post="/api/tunnels/${tunnel.config.id}/stop" hx-target="closest .tunnel-item" hx-swap="outerHTML" hx-indicator="#stop-spinner-${tunnel.config.id}" class="flex-1 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors">
             <span id="stop-spinner-${tunnel.config.id}" class="htmx-indicator"><svg class="animate-spin size-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></span>
             <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
             Stop
-          </button>` : ""}
-        ${tunnel.status === "error" || tunnel.status === "closed" ? `
+          </button>`
+            : ""
+        }
+        ${
+          tunnel.status === "error" || tunnel.status === "closed"
+            ? `
           <button hx-post="/api/tunnels/${tunnel.config.id}/restart" hx-target="closest .tunnel-item" hx-swap="outerHTML" class="flex-1 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors">
             <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             Restart
-          </button>` : ""}
+          </button>`
+            : ""
+        }
         <button hx-delete="/api/tunnels/${tunnel.config.id}" hx-target="closest .tunnel-item" hx-swap="outerHTML" hx-confirm="Delete tunnel '${tunnel.config.name}'?" class="flex-1 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors">
           <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           Delete

@@ -11,9 +11,9 @@ async function getPublicIP(): Promise<string | null> {
 
   for (const service of services) {
     try {
-      const response = await fetch(service, { 
+      const response = await fetch(service, {
         signal: AbortSignal.timeout(5000),
-        headers: { "User-Agent": "curl/7.64.1" }
+        headers: { "User-Agent": "curl/7.64.1" },
       });
       if (response.ok) {
         const ip = (await response.text()).trim();
@@ -37,39 +37,41 @@ export const localtunnelProvider: TunnelProvider = {
     const options: { port: number; subdomain?: string; local_host?: string } = {
       port: config.localPort,
     };
-    
+
     if (config.subdomain) {
       options.subdomain = config.subdomain;
     }
-    
+
     if (config.localHost && config.localHost !== "localhost") {
       options.local_host = config.localHost;
     }
 
     // Log
-    tunnel.logs.push(`$ localtunnel --port ${config.localPort}${config.subdomain ? ` --subdomain ${config.subdomain}` : ''}`);
+    tunnel.logs.push(
+      `$ localtunnel --port ${config.localPort}${config.subdomain ? ` --subdomain ${config.subdomain}` : ""}`,
+    );
     tunnel.logs.push(`Starting localtunnel...`);
 
     try {
       tunnel.logs.push(`Connecting to loca.lt server...`);
       const [lt, password] = await Promise.all([
         localtunnel(options),
-        getPublicIP()
+        getPublicIP(),
       ]);
-      
+
       // Store the tunnel instance for later cleanup
       (tunnel as any)._ltInstance = lt;
-      
+
       tunnel.urls = [lt.url];
       tunnel.status = "live";
       tunnel.logs.push(`Tunnel established!`);
       tunnel.logs.push(`URL: ${lt.url}`);
-      
+
       if (password) {
         tunnel.password = password;
         tunnel.extraInfo = {
           note: "Localtunnel requires password (your public IP) for first-time browser access",
-          passwordUrl: "https://loca.lt/mytunnelpassword"
+          passwordUrl: "https://loca.lt/mytunnelpassword",
         };
         tunnel.logs.push(`Password (your IP): ${password}`);
       }
@@ -90,7 +92,9 @@ export const localtunnelProvider: TunnelProvider = {
       });
     } catch (error) {
       tunnel.status = "error";
-      tunnel.logs.push(`ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      tunnel.logs.push(
+        `ERROR: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       throw error;
     }
   },

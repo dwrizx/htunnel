@@ -39,4 +39,3 @@
 
 - `.env` is gitignored; never commit real provider tokens or credentials.
 - When introducing new configuration, document it in `README.md` and consider adding a safe `.env.example`.
-

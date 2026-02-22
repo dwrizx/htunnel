@@ -1,7 +1,6 @@
 import type {
   TunnelConfig,
   TunnelInstance,
-  TunnelProvider as TunnelProviderType,
   CreateTunnelRequest,
 } from "./types";
 import { getProvider } from "./providers";
@@ -71,7 +70,7 @@ class TunnelManager {
     if (!tunnel) return undefined;
 
     await this.stop(id);
-    
+
     tunnel.status = "starting";
     tunnel.urls = [];
     tunnel.error = undefined;

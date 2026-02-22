@@ -6,25 +6,25 @@ import { join } from "path";
 
 /**
  * Cloudflare Tunnel Provider
- * 
+ *
  * Supports three modes:
- * 
+ *
  * 1. Quick Tunnel (default): Uses `cloudflared tunnel --url` for instant temporary tunnels
  *    - No authentication required
  *    - Random URL on .trycloudflare.com
  *    - Perfect for development/testing
- * 
+ *
  * 2. Local Tunnel: Locally-managed tunnel with credentials file
  *    - Requires `cloudflared tunnel login` first (done automatically if needed)
  *    - Creates persistent tunnel with your domain
  *    - Credentials stored in ~/.cloudflared/
  *    - Suitable for production
- * 
+ *
  * 3. Token Tunnel: Remotely-managed tunnel via Cloudflare Dashboard
  *    - Uses token from Zero Trust Dashboard
  *    - URL configured in dashboard, not in CLI
  *    - Best for team/enterprise deployments
- * 
+ *
  * @see https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/
  */
 
@@ -37,9 +37,10 @@ export const cloudflareProvider: TunnelProvider = {
   async start(tunnel: TunnelInstance): Promise<void> {
     const { config } = tunnel;
     const target = `http://${config.localHost}:${config.localPort}`;
-    
+
     // Determine tunnel mode
-    const mode: CloudflareTunnelMode = config.cloudflareMode || 
+    const mode: CloudflareTunnelMode =
+      config.cloudflareMode ||
       (config.token || ENV_TUNNEL_TOKEN ? "token" : "quick");
 
     tunnel.logs.push(`Mode: ${getModeDescription(mode)}`);
@@ -74,9 +75,12 @@ export const cloudflareProvider: TunnelProvider = {
 
 function getModeDescription(mode: CloudflareTunnelMode): string {
   switch (mode) {
-    case "quick": return "Quick Tunnel (temporary, random URL)";
-    case "local": return "Local Tunnel (persistent, your domain)";
-    case "token": return "Token Tunnel (managed via Dashboard)";
+    case "quick":
+      return "Quick Tunnel (temporary, random URL)";
+    case "local":
+      return "Local Tunnel (persistent, your domain)";
+    case "token":
+      return "Token Tunnel (managed via Dashboard)";
   }
 }
 
@@ -84,19 +88,16 @@ function getModeDescription(mode: CloudflareTunnelMode): string {
  * Start a Quick Tunnel (no auth required)
  * Creates a temporary tunnel with random URL on trycloudflare.com
  */
-async function startQuickTunnel(tunnel: TunnelInstance, target: string): Promise<void> {
-  const args = [
-    "cloudflared",
-    "tunnel",
-    "--no-autoupdate",
-    "--url",
-    target,
-  ];
-  
+async function startQuickTunnel(
+  tunnel: TunnelInstance,
+  target: string,
+): Promise<void> {
+  const args = ["cloudflared", "tunnel", "--no-autoupdate", "--url", target];
+
   const displayCmd = `cloudflared tunnel --url ${target}`;
   tunnel.logs.push(`$ ${displayCmd}`);
   tunnel.logs.push(`Starting quick Cloudflare tunnel...`);
-  
+
   tunnel.extraInfo = {
     mode: "Quick Tunnel",
     note: "Temporary tunnel - URL changes on restart",
@@ -122,9 +123,11 @@ async function startQuickTunnel(tunnel: TunnelInstance, target: string): Promise
     monitorStream(proc.stderr, tunnel);
   } catch (error) {
     proc.kill();
-    tunnel.logs.push(`ERROR: ${error instanceof Error ? error.message : 'Failed to establish tunnel'}`);
-    
-    if (error instanceof Error && error.message.includes('Timeout')) {
+    tunnel.logs.push(
+      `ERROR: ${error instanceof Error ? error.message : "Failed to establish tunnel"}`,
+    );
+
+    if (error instanceof Error && error.message.includes("Timeout")) {
       tunnel.logs.push(`TIP: Make sure cloudflared is installed correctly`);
       tunnel.logs.push(`TIP: Check your network connection to Cloudflare`);
     }
@@ -136,26 +139,33 @@ async function startQuickTunnel(tunnel: TunnelInstance, target: string): Promise
  * Start a Local Tunnel (locally-managed)
  * Uses credentials file from ~/.cloudflared/
  */
-async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise<void> {
+async function startLocalTunnel(
+  tunnel: TunnelInstance,
+  target: string,
+): Promise<void> {
   const { config } = tunnel;
   const tunnelName = config.cloudflareTunnelName || config.name;
   const domain = config.cloudflareDomain;
-  
+
   tunnel.logs.push(`Setting up local tunnel: ${tunnelName}`);
-  
+
   // Step 1: Check if authenticated (cert.pem exists)
   const certPath = join(CLOUDFLARED_DIR, "cert.pem");
   const isAuthenticated = existsSync(certPath);
-  
+
   if (!isAuthenticated) {
-    tunnel.logs.push(`Authentication required. Running 'cloudflared tunnel login'...`);
-    tunnel.logs.push(`A browser window will open. Please log in to Cloudflare.`);
+    tunnel.logs.push(
+      `Authentication required. Running 'cloudflared tunnel login'...`,
+    );
+    tunnel.logs.push(
+      `A browser window will open. Please log in to Cloudflare.`,
+    );
     tunnel.extraInfo = {
       mode: "Local Tunnel",
       status: "Waiting for authentication...",
       action: "Please complete login in browser",
     };
-    
+
     try {
       await runCloudflaredLogin(tunnel);
       tunnel.logs.push(`Authentication successful!`);
@@ -164,48 +174,52 @@ async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise
       throw error;
     }
   }
-  
+
   // Step 2: Check if tunnel exists, create if not
   const tunnelInfo = await getTunnelInfo(tunnelName);
   let tunnelId: string;
-  
+
   if (tunnelInfo) {
     tunnelId = tunnelInfo.id;
-    tunnel.logs.push(`Using existing tunnel: ${tunnelName} (${tunnelId.substring(0, 8)}...)`);
+    tunnel.logs.push(
+      `Using existing tunnel: ${tunnelName} (${tunnelId.substring(0, 8)}...)`,
+    );
   } else {
     tunnel.logs.push(`Creating new tunnel: ${tunnelName}`);
-    tunnelId = await createTunnel(tunnelName, tunnel);
+    tunnelId = await createTunnel(tunnelName);
     tunnel.logs.push(`Tunnel created with ID: ${tunnelId.substring(0, 8)}...`);
   }
-  
+
   // Step 3: Create/update config file
   const configPath = join(CLOUDFLARED_DIR, `${tunnelId}.yml`);
   const credentialsPath = join(CLOUDFLARED_DIR, `${tunnelId}.json`);
-  
+
   const configContent = generateConfig({
     tunnelId,
     credentialsPath,
     target,
     domain,
   });
-  
+
   await Bun.write(configPath, configContent);
   tunnel.logs.push(`Config written to: ${configPath}`);
-  
+
   // Step 4: Setup DNS route if domain provided
   if (domain) {
     tunnel.logs.push(`Setting up DNS route: ${domain} -> ${tunnelName}`);
     try {
       await setupDnsRoute(tunnelId, domain, tunnel);
       tunnel.logs.push(`DNS route configured: ${domain}`);
-    } catch (error) {
-      tunnel.logs.push(`Warning: DNS setup may have failed (might already exist)`);
+    } catch {
+      tunnel.logs.push(
+        `Warning: DNS setup may have failed (might already exist)`,
+      );
     }
   }
-  
+
   // Step 5: Run the tunnel
   tunnel.logs.push(`Starting tunnel...`);
-  
+
   const args = [
     "cloudflared",
     "tunnel",
@@ -215,10 +229,10 @@ async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise
     "run",
     tunnelId,
   ];
-  
+
   const displayCmd = `cloudflared tunnel --config ${configPath} run ${tunnelId}`;
   tunnel.logs.push(`$ ${displayCmd}`);
-  
+
   tunnel.extraInfo = {
     mode: "Local Tunnel",
     tunnelId: tunnelId,
@@ -227,20 +241,20 @@ async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise
     domain: domain || "cfargotunnel subdomain",
     docs: "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/create-local-tunnel/",
   };
-  
+
   const proc = Bun.spawn(args, {
     stdout: "pipe",
     stderr: "pipe",
   });
-  
+
   tunnel.process = proc;
-  
+
   try {
     const connected = await waitForConnection(proc.stderr, tunnel, 30000);
     if (connected) {
       tunnel.status = "live";
       tunnel.logs.push(`Tunnel connected!`);
-      
+
       // Set URLs
       if (domain) {
         tunnel.urls = [`https://${domain}`];
@@ -249,13 +263,15 @@ async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise
         tunnel.urls = [`https://${tunnelId}.cfargotunnel.com`];
         tunnel.logs.push(`URL: https://${tunnelId}.cfargotunnel.com`);
       }
-      
+
       // Monitor for errors
       monitorStream(proc.stderr, tunnel);
     }
   } catch (error) {
     proc.kill();
-    tunnel.logs.push(`ERROR: ${error instanceof Error ? error.message : 'Failed to connect'}`);
+    tunnel.logs.push(
+      `ERROR: ${error instanceof Error ? error.message : "Failed to connect"}`,
+    );
     throw error;
   }
 }
@@ -264,11 +280,14 @@ async function startLocalTunnel(tunnel: TunnelInstance, target: string): Promise
  * Start a Token-based Tunnel (remotely managed)
  * Uses token from Cloudflare Zero Trust Dashboard
  */
-async function startTokenTunnel(tunnel: TunnelInstance, token: string): Promise<void> {
+async function startTokenTunnel(
+  tunnel: TunnelInstance,
+  token: string,
+): Promise<void> {
   if (!token) {
     throw new Error("Token is required for token-based tunnels");
   }
-  
+
   const args = [
     "cloudflared",
     "tunnel",
@@ -277,24 +296,24 @@ async function startTokenTunnel(tunnel: TunnelInstance, token: string): Promise<
     "--token",
     token,
   ];
-  
+
   const displayCmd = `cloudflared tunnel run --token ***`;
   tunnel.logs.push(`$ ${displayCmd}`);
   tunnel.logs.push(`Starting named Cloudflare tunnel with token...`);
   tunnel.logs.push(`Note: URL is configured in your Cloudflare Dashboard`);
-  
+
   tunnel.extraInfo = {
     mode: "Named Tunnel (Token)",
     note: "URL is configured in Cloudflare Zero Trust Dashboard",
     dashboard: "https://one.dash.cloudflare.com/",
   };
-  
+
   const proc = Bun.spawn(args, {
     stdout: "pipe",
     stderr: "pipe",
   });
   tunnel.process = proc;
-  
+
   try {
     const connected = await waitForConnection(proc.stderr, tunnel, 30000);
     if (connected) {
@@ -302,13 +321,15 @@ async function startTokenTunnel(tunnel: TunnelInstance, token: string): Promise<
       tunnel.logs.push(`Tunnel connected to Cloudflare!`);
       tunnel.logs.push(`Check your Cloudflare Dashboard for the URL`);
       tunnel.urls = ["See Cloudflare Dashboard"];
-      
+
       // Monitor for errors
       monitorStream(proc.stderr, tunnel);
     }
   } catch (error) {
     proc.kill();
-    tunnel.logs.push(`ERROR: ${error instanceof Error ? error.message : 'Failed to connect'}`);
+    tunnel.logs.push(
+      `ERROR: ${error instanceof Error ? error.message : "Failed to connect"}`,
+    );
     throw error;
   }
 }
@@ -322,12 +343,12 @@ async function runCloudflaredLogin(tunnel: TunnelInstance): Promise<void> {
       stdout: "pipe",
       stderr: "pipe",
     });
-    
+
     const timeout = setTimeout(() => {
       proc.kill();
       reject(new Error("Login timeout (120s)"));
     }, 120000);
-    
+
     proc.exited.then((code) => {
       clearTimeout(timeout);
       if (code === 0) {
@@ -336,7 +357,7 @@ async function runCloudflaredLogin(tunnel: TunnelInstance): Promise<void> {
         reject(new Error(`Login failed with code ${code}`));
       }
     });
-    
+
     // Monitor stderr for progress
     monitorLoginProgress(proc.stderr, tunnel);
   });
@@ -347,16 +368,16 @@ async function runCloudflaredLogin(tunnel: TunnelInstance): Promise<void> {
  */
 async function monitorLoginProgress(
   stream: ReadableStream<Uint8Array>,
-  tunnel: TunnelInstance
+  tunnel: TunnelInstance,
 ): Promise<void> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
-  
+
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       const text = decoder.decode(value, { stream: true });
       if (text.includes("browser")) {
         tunnel.logs.push(`Browser opened for authentication`);
@@ -375,21 +396,26 @@ async function monitorLoginProgress(
 /**
  * Get info about an existing tunnel
  */
-async function getTunnelInfo(name: string): Promise<{ id: string; name: string } | null> {
+async function getTunnelInfo(
+  name: string,
+): Promise<{ id: string; name: string } | null> {
   try {
-    const proc = Bun.spawn(["cloudflared", "tunnel", "list", "--output", "json"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    
+    const proc = Bun.spawn(
+      ["cloudflared", "tunnel", "list", "--output", "json"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+
     const output = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
-    
+
     if (exitCode !== 0) return null;
-    
+
     const tunnels = JSON.parse(output || "[]");
     const found = tunnels.find((t: { name: string }) => t.name === name);
-    
+
     return found ? { id: found.id, name: found.name } : null;
   } catch {
     return null;
@@ -399,30 +425,32 @@ async function getTunnelInfo(name: string): Promise<{ id: string; name: string }
 /**
  * Create a new tunnel
  */
-async function createTunnel(name: string, tunnel: TunnelInstance): Promise<string> {
+async function createTunnel(name: string): Promise<string> {
   const proc = Bun.spawn(["cloudflared", "tunnel", "create", name], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  
+
   const output = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
-  
+
   if (exitCode !== 0) {
     throw new Error(`Failed to create tunnel: ${output}`);
   }
-  
+
   // Extract tunnel ID from output
   // Output format: "Tunnel credentials written to /path/to/UUID.json"
-  const idMatch = output.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-  
+  const idMatch = output.match(
+    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
+  );
+
   if (!idMatch || !idMatch[1]) {
     // Try to get ID from tunnel list
     const info = await getTunnelInfo(name);
     if (info) return info.id;
     throw new Error("Could not get tunnel ID");
   }
-  
+
   return idMatch[1];
 }
 
@@ -436,7 +464,7 @@ function generateConfig(options: {
   domain?: string;
 }): string {
   const { tunnelId, credentialsPath, target, domain } = options;
-  
+
   let config = `# Cloudflare Tunnel configuration
 # Generated by HadesTunnel
 tunnel: ${tunnelId}
@@ -450,7 +478,7 @@ ingress:
     service: ${target}
 `;
   }
-  
+
   // Catch-all rule (required)
   config += `  - service: ${target}
 `;
@@ -464,16 +492,19 @@ ingress:
 async function setupDnsRoute(
   tunnelId: string,
   domain: string,
-  tunnel: TunnelInstance
+  tunnel: TunnelInstance,
 ): Promise<void> {
-  const proc = Bun.spawn(["cloudflared", "tunnel", "route", "dns", tunnelId, domain], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  
+  const proc = Bun.spawn(
+    ["cloudflared", "tunnel", "route", "dns", tunnelId, domain],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+
   const output = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
-  
+
   // exitCode 1 might mean route already exists, which is OK
   if (exitCode !== 0 && !output.includes("already exists")) {
     tunnel.logs.push(`DNS route warning: ${output.substring(0, 100)}`);
@@ -486,7 +517,7 @@ async function setupDnsRoute(
 async function waitForConnection(
   stream: ReadableStream<Uint8Array>,
   tunnel: TunnelInstance,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<boolean> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -520,10 +551,12 @@ async function waitForConnection(
           }
 
           // Check for successful connection
-          if (buffer.includes("Registered tunnel connection") || 
-              buffer.includes("Connection registered") ||
-              buffer.includes("connIndex=0") ||
-              buffer.includes("Tunnel server said")) {
+          if (
+            buffer.includes("Registered tunnel connection") ||
+            buffer.includes("Connection registered") ||
+            buffer.includes("connIndex=0") ||
+            buffer.includes("Tunnel server said")
+          ) {
             clearTimeout(timeout);
             reader.releaseLock();
             resolve(true);
@@ -556,7 +589,7 @@ async function waitForConnection(
 async function waitForCloudflareUrl(
   stream: ReadableStream<Uint8Array>,
   tunnel: TunnelInstance,
-  timeoutMs: number
+  timeoutMs: number,
 ): Promise<string> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -593,7 +626,9 @@ async function waitForCloudflareUrl(
           }
 
           // Pattern 1: URL in box format (most common for quick tunnels)
-          const boxUrlMatch = buffer.match(/\|\s*(https:\/\/[a-z0-9-]+\.trycloudflare\.com)\s*\|/i);
+          const boxUrlMatch = buffer.match(
+            /\|\s*(https:\/\/[a-z0-9-]+\.trycloudflare\.com)\s*\|/i,
+          );
           if (boxUrlMatch && boxUrlMatch[1]) {
             clearTimeout(timeout);
             reader.releaseLock();
@@ -602,7 +637,9 @@ async function waitForCloudflareUrl(
           }
 
           // Pattern 2: Direct URL in log line
-          const directUrlMatch = buffer.match(/INF\s+(https:\/\/[a-z0-9-]+\.trycloudflare\.com)/i);
+          const directUrlMatch = buffer.match(
+            /INF\s+(https:\/\/[a-z0-9-]+\.trycloudflare\.com)/i,
+          );
           if (directUrlMatch && directUrlMatch[1]) {
             clearTimeout(timeout);
             reader.releaseLock();
@@ -611,9 +648,11 @@ async function waitForCloudflareUrl(
           }
 
           // Pattern 3: URL anywhere in output (fallback)
-          const anyUrlMatch = buffer.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
+          const anyUrlMatch = buffer.match(
+            /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i,
+          );
           if (anyUrlMatch) {
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise((r) => setTimeout(r, 1000));
             clearTimeout(timeout);
             reader.releaseLock();
             resolve(anyUrlMatch[0]);
@@ -621,7 +660,9 @@ async function waitForCloudflareUrl(
           }
 
           // Pattern 4: cfargotunnel.com domain (for named tunnels)
-          const cfargotunnelMatch = buffer.match(/https:\/\/[a-z0-9-]+\.cfargotunnel\.com/i);
+          const cfargotunnelMatch = buffer.match(
+            /https:\/\/[a-z0-9-]+\.cfargotunnel\.com/i,
+          );
           if (cfargotunnelMatch) {
             clearTimeout(timeout);
             reader.releaseLock();
@@ -630,7 +671,10 @@ async function waitForCloudflareUrl(
           }
 
           // Check for errors
-          if (buffer.includes("failed to connect") || buffer.includes("error")) {
+          if (
+            buffer.includes("failed to connect") ||
+            buffer.includes("error")
+          ) {
             const errorMatch = buffer.match(/ERR[^\n]+/);
             if (errorMatch) {
               tunnel.logs.push(`[cloudflared] ${errorMatch[0]}`);
@@ -653,23 +697,23 @@ async function waitForCloudflareUrl(
  */
 async function monitorStream(
   stream: ReadableStream<Uint8Array> | null,
-  tunnel: TunnelInstance
+  tunnel: TunnelInstance,
 ): Promise<void> {
   if (!stream) return;
-  
+
   const reader = stream.getReader();
   const decoder = new TextDecoder();
-  
+
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       const text = decoder.decode(value, { stream: true });
-      if (text.includes('ERR') || text.includes('error')) {
-        const lines = text.split('\n').filter(l => l.trim());
-        lines.forEach(line => {
-          if (!tunnel.logs.includes(line) && line.includes('ERR')) {
+      if (text.includes("ERR") || text.includes("error")) {
+        const lines = text.split("\n").filter((l) => l.trim());
+        lines.forEach((line) => {
+          if (!tunnel.logs.includes(line) && line.includes("ERR")) {
             tunnel.logs.push(`[cloudflared] ${line.trim()}`);
           }
         });
@@ -730,12 +774,17 @@ export const cloudflaredUtils = {
   /**
    * List all tunnels
    */
-  async listTunnels(): Promise<Array<{ id: string; name: string; created: string }>> {
+  async listTunnels(): Promise<
+    Array<{ id: string; name: string; created: string }>
+  > {
     try {
-      const proc = Bun.spawn(["cloudflared", "tunnel", "list", "--output", "json"], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+      const proc = Bun.spawn(
+        ["cloudflared", "tunnel", "list", "--output", "json"],
+        {
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
       const output = await new Response(proc.stdout).text();
       return JSON.parse(output || "[]");
     } catch {
@@ -826,10 +875,7 @@ export const cloudflaredUtils = {
         "chmod +x cloudflared",
         "sudo mv cloudflared /usr/local/bin/",
       ],
-      macos: [
-        "# Install using Homebrew",
-        "brew install cloudflared",
-      ],
+      macos: ["# Install using Homebrew", "brew install cloudflared"],
       windows: [
         "# Option 1: Using winget (recommended)",
         "winget install --id Cloudflare.cloudflared",

@@ -1,25 +1,39 @@
 {
   "name": "hadestunnel",
   "version": "1.0.0",
+  "private": true,
   "description": "Multi-provider tunnel manager with web UI",
   "type": "module",
-  "private": true,
   "scripts": {
     "start": "bun run index.ts",
     "dev": "bun --watch run index.ts",
     "help": "bun run index.ts --help",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "tsgo -p tsconfig.json",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "fmt": "oxfmt .",
+    "fmt:check": "oxfmt --check .",
+    "check:fast": "bun run lint && bun run fmt:check",
+    "check": "bun run typecheck && bun run lint && bun run fmt:check",
+    "fix": "bun run lint:fix && bun run fmt"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",
+    "@pinggy/pinggy": "^0.3.5",
     "hono": "^4.10.8",
     "localtunnel": "^2.0.2"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/localtunnel": "^2.0.4"
+    "@types/localtunnel": "^2.0.4",
+    "@typescript/native-preview": "^7.0.0-dev.20260221.1",
+    "oxfmt": "^0.34.0",
+    "oxlint": "^1.49.0"
   },
   "peerDependencies": {
     "typescript": "^5"
-  }
+  },
+  "trustedDependencies": [
+    "@pinggy/pinggy"
+  ]
 }

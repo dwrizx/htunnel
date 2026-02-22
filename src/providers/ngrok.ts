@@ -9,18 +9,19 @@ export const ngrokProvider: TunnelProvider = {
   async start(tunnel: TunnelInstance): Promise<void> {
     const { config } = tunnel;
     const authtoken = config.token || ENV_AUTHTOKEN;
-    const localTarget = config.localHost && config.localHost !== "localhost" 
-      ? `${config.localHost}:${config.localPort}`
-      : `${config.localPort}`;
+    const localTarget =
+      config.localHost && config.localHost !== "localhost"
+        ? `${config.localHost}:${config.localPort}`
+        : `${config.localPort}`;
 
     const args = ["http", localTarget];
-    
+
     if (authtoken) {
       args.push("--authtoken", authtoken);
     }
 
     // Log command
-    const displayCmd = authtoken 
+    const displayCmd = authtoken
       ? `ngrok http ${localTarget} --authtoken ***`
       : `ngrok http ${localTarget}`;
     tunnel.logs.push(`$ ${displayCmd}`);
@@ -40,7 +41,9 @@ export const ngrokProvider: TunnelProvider = {
     };
 
     if (authtoken) {
-      tunnel.extraInfo.authSource = config.token ? "form" : "env (NGROK_AUTHTOKEN)";
+      tunnel.extraInfo.authSource = config.token
+        ? "form"
+        : "env (NGROK_AUTHTOKEN)";
       tunnel.logs.push(`Using authtoken from ${tunnel.extraInfo.authSource}`);
     }
 
@@ -50,7 +53,7 @@ export const ngrokProvider: TunnelProvider = {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       tunnel.logs.push(`Attempt ${attempt + 1}/${maxAttempts}...`);
-      
+
       try {
         const response = await fetch("http://127.0.0.1:4040/api/tunnels");
         const data = (await response.json()) as {
@@ -61,7 +64,7 @@ export const ngrokProvider: TunnelProvider = {
           tunnel.urls = data.tunnels.map((t) => t.public_url);
           tunnel.status = "live";
           tunnel.logs.push(`Tunnel established!`);
-          tunnel.urls.forEach(url => tunnel.logs.push(`URL: ${url}`));
+          tunnel.urls.forEach((url) => tunnel.logs.push(`URL: ${url}`));
           return;
         }
       } catch {
@@ -72,7 +75,8 @@ export const ngrokProvider: TunnelProvider = {
     // If we couldn't get URLs from API, check if process is still running
     if (tunnel.process) {
       tunnel.status = "error";
-      tunnel.error = "Failed to get tunnel URL from ngrok. Make sure authtoken is valid.";
+      tunnel.error =
+        "Failed to get tunnel URL from ngrok. Make sure authtoken is valid.";
       tunnel.logs.push(`ERROR: ${tunnel.error}`);
     }
   },

@@ -29,10 +29,20 @@ export async function detectLinuxDistro(): Promise<LinuxDistro> {
     const output = await new Response(proc.stdout).text();
     const lower = output.toLowerCase();
 
-    if (lower.includes("debian") || lower.includes("ubuntu") || lower.includes("mint")) {
+    if (
+      lower.includes("debian") ||
+      lower.includes("ubuntu") ||
+      lower.includes("mint")
+    ) {
       return "debian";
     }
-    if (lower.includes("fedora") || lower.includes("rhel") || lower.includes("centos") || lower.includes("rocky") || lower.includes("alma")) {
+    if (
+      lower.includes("fedora") ||
+      lower.includes("rhel") ||
+      lower.includes("centos") ||
+      lower.includes("rocky") ||
+      lower.includes("alma")
+    ) {
       return "rhel";
     }
     if (lower.includes("arch") || lower.includes("manjaro")) {
@@ -62,9 +72,11 @@ export function getArch(): string {
 /**
  * Check if a CLI tool is installed
  */
-export async function checkCliInstalled(cli: string): Promise<{ installed: boolean; version?: string }> {
+export async function checkCliInstalled(
+  cli: string,
+): Promise<{ installed: boolean; version?: string }> {
   const os = detectOS();
-  
+
   // Adjust command for Windows
   let command: string[];
   if (os === "windows") {
@@ -126,7 +138,12 @@ export async function commandExists(cmd: string): Promise<boolean> {
  * Check all providers for CLI availability
  */
 export async function checkAllProviders(): Promise<ProviderStatus[]> {
-  const providers: TunnelProvider[] = ["pinggy", "cloudflare", "ngrok", "localtunnel"];
+  const providers: TunnelProvider[] = [
+    "pinggy",
+    "cloudflare",
+    "ngrok",
+    "localtunnel",
+  ];
   const results: ProviderStatus[] = [];
 
   for (const provider of providers) {
@@ -146,7 +163,9 @@ export async function checkAllProviders(): Promise<ProviderStatus[]> {
 /**
  * Get installation command for a provider
  */
-export function getInstallCommand(provider: TunnelProvider): { linux: string; macos: string; windows?: string } | null {
+export function getInstallCommand(
+  provider: TunnelProvider,
+): { linux: string; macos: string; windows?: string } | null {
   const info = PROVIDERS[provider];
   return info.installCommands ?? null;
 }
@@ -154,7 +173,9 @@ export function getInstallCommand(provider: TunnelProvider): { linux: string; ma
 /**
  * Get detailed install commands based on platform
  */
-export async function getDetailedInstallCommands(provider: TunnelProvider): Promise<{
+export async function getDetailedInstallCommands(
+  provider: TunnelProvider,
+): Promise<{
   platform: Platform;
   distro?: LinuxDistro;
   commands: string[];
@@ -182,7 +203,9 @@ export async function getDetailedInstallCommands(provider: TunnelProvider): Prom
   if (os === "windows") {
     return {
       platform: "windows",
-      commands: (info.installCommands.windows || "").split(" && ").filter(Boolean),
+      commands: (info.installCommands.windows || "")
+        .split(" && ")
+        .filter(Boolean),
       description: "Install using winget or Chocolatey",
     };
   }
@@ -201,12 +224,17 @@ export async function getDetailedInstallCommands(provider: TunnelProvider): Prom
 /**
  * Run installation command for a provider
  */
-export async function runInstallCommand(provider: TunnelProvider): Promise<{ success: boolean; output: string }> {
+export async function runInstallCommand(
+  provider: TunnelProvider,
+): Promise<{ success: boolean; output: string }> {
   const commands = getInstallCommand(provider);
   const os = detectOS();
 
   if (!commands) {
-    return { success: false, output: "No install command available for this provider" };
+    return {
+      success: false,
+      output: "No install command available for this provider",
+    };
   }
 
   const command = commands[os];
@@ -216,7 +244,7 @@ export async function runInstallCommand(provider: TunnelProvider): Promise<{ suc
 
   try {
     let proc;
-    
+
     if (os === "windows") {
       // Use cmd.exe on Windows
       proc = Bun.spawn(["cmd", "/c", command], {
@@ -252,7 +280,8 @@ export function getCloudflaredDownloadUrl(): string {
   const os = detectOS();
   const arch = getArch();
 
-  const baseUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download";
+  const baseUrl =
+    "https://github.com/cloudflare/cloudflared/releases/latest/download";
 
   if (os === "macos") {
     return arch === "arm64"

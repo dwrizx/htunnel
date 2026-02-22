@@ -17,11 +17,11 @@ Complete guide for using Cloudflare Tunnel with HadesTunnel.
 
 Cloudflare Tunnel provides secure, encrypted tunnels between your local services and the Cloudflare edge network. HadesTunnel supports three modes:
 
-| Mode | Auth Required | URL Type | Use Case |
-|------|--------------|----------|----------|
-| **Quick** | No | Random (`*.trycloudflare.com`) | Development, testing |
-| **Local** | Yes (login) | Custom domain | Production, persistent tunnels |
-| **Token** | Yes (token) | Dashboard configured | Team/enterprise deployments |
+| Mode      | Auth Required | URL Type                       | Use Case                       |
+| --------- | ------------- | ------------------------------ | ------------------------------ |
+| **Quick** | No            | Random (`*.trycloudflare.com`) | Development, testing           |
+| **Local** | Yes (login)   | Custom domain                  | Production, persistent tunnels |
+| **Token** | Yes (token)   | Dashboard configured           | Team/enterprise deployments    |
 
 ---
 
@@ -29,11 +29,11 @@ Cloudflare Tunnel provides secure, encrypted tunnels between your local services
 
 ### Supported Platforms
 
-| Platform | Architecture | Status |
-|----------|--------------|--------|
-| **Windows** | x64, x86 | ✅ Full Support |
-| **macOS** | Intel (x64), Apple Silicon (arm64) | ✅ Full Support |
-| **Linux** | x64, arm64, arm | ✅ Full Support |
+| Platform    | Architecture                       | Status          |
+| ----------- | ---------------------------------- | --------------- |
+| **Windows** | x64, x86                           | ✅ Full Support |
+| **macOS**   | Intel (x64), Apple Silicon (arm64) | ✅ Full Support |
+| **Linux**   | x64, arm64, arm                    | ✅ Full Support |
 
 ### Auto-Detection Features
 
@@ -76,16 +76,19 @@ curl http://localhost:4000/api/cloudflared/instructions
 #### Windows
 
 **Option 1: winget (Recommended)**
+
 ```powershell
 winget install --id Cloudflare.cloudflared
 ```
 
 **Option 2: Chocolatey**
+
 ```powershell
 choco install cloudflared
 ```
 
 **Option 3: Manual Download**
+
 ```powershell
 # Download
 Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
@@ -97,11 +100,13 @@ $env:PATH += ";$(Get-Location)"
 #### macOS
 
 **Option 1: Homebrew (Recommended)**
+
 ```bash
 brew install cloudflared
 ```
 
 **Option 2: Binary Download**
+
 ```bash
 # Intel Mac
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz | tar xz
@@ -115,6 +120,7 @@ sudo mv cloudflared /usr/local/bin/
 #### Linux
 
 **Debian/Ubuntu (APT)**
+
 ```bash
 # Add repository
 sudo mkdir -p --mode=0755 /usr/share/keyrings
@@ -129,6 +135,7 @@ sudo apt-get update && sudo apt-get install cloudflared
 ```
 
 **RHEL/CentOS/Fedora (DNF/YUM)**
+
 ```bash
 # Add repository
 curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | \
@@ -142,11 +149,13 @@ sudo yum install cloudflared
 ```
 
 **Arch Linux**
+
 ```bash
 sudo pacman -S cloudflared
 ```
 
 **Binary (Any Linux)**
+
 ```bash
 # x64
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
@@ -175,6 +184,7 @@ cloudflared --version
 **The easiest way to get started.** Creates an instant temporary tunnel with a random URL.
 
 **Features:**
+
 - ✅ No authentication required
 - ✅ No setup needed
 - ✅ Instant URL generation
@@ -182,12 +192,14 @@ cloudflared --version
 - ⚠️ Not suitable for production
 
 **Usage:**
+
 1. Select Cloudflare provider
 2. Choose **Quick** mode
 3. Enter tunnel name and port
 4. Click Create
 
 **Behind the scenes:**
+
 ```bash
 cloudflared tunnel --url http://localhost:3000
 ```
@@ -201,6 +213,7 @@ cloudflared tunnel --url http://localhost:3000
 **For persistent tunnels with your own domain.** Uses locally-stored credentials.
 
 **Features:**
+
 - ✅ Persistent tunnel name
 - ✅ Use your own domain
 - ✅ Credentials stored locally (`~/.cloudflared/`)
@@ -209,11 +222,13 @@ cloudflared tunnel --url http://localhost:3000
 - ⚠️ Domain must be on Cloudflare DNS
 
 **Prerequisites:**
+
 1. Cloudflare account
 2. Domain added to Cloudflare
 3. Domain nameservers pointing to Cloudflare
 
 **First-time Setup:**
+
 1. Select Cloudflare provider
 2. Choose **Local** mode
 3. Enter tunnel name (e.g., `my-app`)
@@ -222,6 +237,7 @@ cloudflared tunnel --url http://localhost:3000
 6. **Browser will open** - log in to Cloudflare and authorize
 
 **Behind the scenes:**
+
 ```bash
 # First time: authenticate
 cloudflared tunnel login
@@ -237,6 +253,7 @@ cloudflared tunnel run my-app
 ```
 
 **Credentials location:**
+
 - **Linux/macOS:** `~/.cloudflared/`
 - **Windows:** `%USERPROFILE%\.cloudflared\`
 
@@ -247,6 +264,7 @@ cloudflared tunnel run my-app
 **For team/enterprise deployments.** Uses a pre-configured token from Cloudflare Dashboard.
 
 **Features:**
+
 - ✅ Managed via Cloudflare Dashboard
 - ✅ Team-friendly (share tokens)
 - ✅ No local credentials needed
@@ -254,6 +272,7 @@ cloudflared tunnel run my-app
 - ⚠️ URL configured in dashboard, not shown in HadesTunnel
 
 **Getting a Token:**
+
 1. Go to [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/)
 2. Navigate to **Networks** → **Tunnels**
 3. Click **Create a tunnel**
@@ -262,12 +281,14 @@ cloudflared tunnel run my-app
 6. Copy the token (starts with `eyJhIjo...`)
 
 **Usage:**
+
 1. Select Cloudflare provider
 2. Choose **Token** mode
 3. Paste your token
 4. Click Create
 
 **Behind the scenes:**
+
 ```bash
 cloudflared tunnel run --token eyJhIjoiNzI0NGQ1NTg5NDdiZTJmY2Y5ZGJlMmY5NGNiNmY1ZDIi...
 ```
@@ -283,6 +304,7 @@ GET /api/cloudflared/status
 ```
 
 **Response:**
+
 ```json
 {
   "installed": true,
@@ -312,6 +334,7 @@ POST /api/cloudflared/install
 ```
 
 **Response (already installed):**
+
 ```json
 {
   "success": true,
@@ -322,6 +345,7 @@ POST /api/cloudflared/install
 ```
 
 **Response (newly installed):**
+
 ```json
 {
   "success": true,
@@ -337,6 +361,7 @@ GET /api/system
 ```
 
 **Response:**
+
 ```json
 {
   "platform": "linux",
@@ -357,11 +382,13 @@ GET /api/system
 #### "cloudflared not found"
 
 **Windows:**
+
 - Restart your terminal/PowerShell after installation
 - Check if cloudflared.exe is in PATH: `where cloudflared`
 - Try running from install directory
 
 **macOS/Linux:**
+
 - Check installation: `which cloudflared`
 - Try: `export PATH=$PATH:/usr/local/bin`
 - Verify permissions: `ls -la /usr/local/bin/cloudflared`
@@ -391,6 +418,7 @@ GET /api/system
 This is usually safe to ignore. The tunnel will still work.
 
 To manually manage routes:
+
 ```bash
 # List routes
 cloudflared tunnel route dns list

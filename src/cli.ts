@@ -17,7 +17,6 @@ ENVIRONMENT:
   CLOUDFLARE_TUNNEL_TOKEN Cloudflare tunnel token (for named tunnels)
   NGROK_AUTHTOKEN         ngrok authentication token
   PINGGY_TOKEN            Pinggy Pro token
-  PINGGY_PASSWORD         Pinggy Pro password
 
 PROVIDERS:
   • Pinggy       Free SSH tunneling, no installation needed
@@ -135,10 +134,9 @@ EXAMPLES:
 
   ▶ Pro tier (persistent URLs)
     1. Sign up at https://dashboard.pinggy.io
-    2. Get your token and password
-    3. Enter in Hades Tunnel UI or set environment variables:
+    2. Get your token
+    3. Enter it in Hades Tunnel UI or set environment variable:
        PINGGY_TOKEN=your_token
-       PINGGY_PASSWORD=your_password
 
 ┌─────────────────────────────────────────────────────────────┐
 │  LOCALTUNNEL                                                │

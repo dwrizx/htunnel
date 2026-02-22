@@ -1,24 +1,30 @@
 /**
  * Cloudflared Installer Utility
  * =============================
- * 
+ *
  * Cross-platform installation utility for cloudflared CLI tool.
  * Supports Windows, macOS, and Linux with automatic detection.
- * 
+ *
  * Features:
  * - Auto-detect platform and architecture
  * - Multiple installation methods per platform
  * - Progress callbacks for UI updates
  * - Automatic skip if already installed
  * - Comprehensive error handling
- * 
+ *
  * Based on official Cloudflare documentation:
  * @see https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
- * 
+ *
  * @module cloudflared-installer
  */
 
-import { detectOS, getArch, detectLinuxDistro, type Platform, type LinuxDistro } from "./cli-checker";
+import {
+  detectOS,
+  getArch,
+  detectLinuxDistro,
+  type Platform,
+  type LinuxDistro,
+} from "./cli-checker";
 
 // ============================================================================
 // Types
@@ -72,14 +78,14 @@ type ProgressCallback = (progress: InstallProgress) => void;
 export async function getPlatformInfo(): Promise<PlatformInfo> {
   const os = detectOS();
   const arch = getArch();
-  
+
   const info: PlatformInfo = { os, arch };
-  
+
   if (os === "linux") {
     info.distro = await detectLinuxDistro();
     info.packageManager = await detectPackageManager();
   } else if (os === "macos") {
-    info.packageManager = await checkCommand("brew") ? "homebrew" : undefined;
+    info.packageManager = (await checkCommand("brew")) ? "homebrew" : undefined;
   } else if (os === "windows") {
     if (await checkCommand("winget")) {
       info.packageManager = "winget";
@@ -87,7 +93,7 @@ export async function getPlatformInfo(): Promise<PlatformInfo> {
       info.packageManager = "chocolatey";
     }
   }
-  
+
   return info;
 }
 
@@ -103,7 +109,7 @@ async function detectPackageManager(): Promise<string | undefined> {
     { cmd: "zypper", name: "zypper" },
     { cmd: "apk", name: "apk" },
   ];
-  
+
   for (const { cmd, name } of managers) {
     if (await checkCommand(cmd)) {
       return name;
@@ -118,7 +124,7 @@ async function detectPackageManager(): Promise<string | undefined> {
 async function checkCommand(cmd: string): Promise<boolean> {
   const os = detectOS();
   const checkCmd = os === "windows" ? "where" : "which";
-  
+
   try {
     const proc = Bun.spawn([checkCmd, cmd], {
       stdout: "pipe",
@@ -143,31 +149,35 @@ export async function checkCloudflaredStatus(): Promise<{
   path?: string;
 }> {
   const os = detectOS();
-  
+
   try {
     // Try different executable names
-    const executables = os === "windows" 
-      ? ["cloudflared.exe", "cloudflared"]
-      : ["cloudflared"];
-    
+    const executables =
+      os === "windows" ? ["cloudflared.exe", "cloudflared"] : ["cloudflared"];
+
     for (const exe of executables) {
       try {
         const proc = Bun.spawn([exe, "--version"], {
           stdout: "pipe",
           stderr: "pipe",
         });
-        
+
         const output = await new Response(proc.stdout).text();
         const exitCode = await proc.exited;
-        
+
         if (exitCode === 0) {
-          const versionMatch = output.match(/cloudflared version (\d+\.\d+\.\d+)/);
-          
+          const versionMatch = output.match(
+            /cloudflared version (\d+\.\d+\.\d+)/,
+          );
+
           // Get path
           const pathCmd = os === "windows" ? "where" : "which";
-          const pathProc = Bun.spawn([pathCmd, exe], { stdout: "pipe", stderr: "pipe" });
+          const pathProc = Bun.spawn([pathCmd, exe], {
+            stdout: "pipe",
+            stderr: "pipe",
+          });
           const pathOutput = await new Response(pathProc.stdout).text();
-          
+
           return {
             installed: true,
             version: versionMatch?.[1],
@@ -181,7 +191,7 @@ export async function checkCloudflaredStatus(): Promise<{
   } catch {
     // Not installed
   }
-  
+
   return { installed: false };
 }
 
@@ -208,12 +218,15 @@ export async function getCloudflaredVersion(): Promise<string | null> {
 /**
  * Get download URL for cloudflared based on platform
  */
-export function getCloudflaredDownloadUrl(platformInfo?: PlatformInfo): DownloadInfo {
+export function getCloudflaredDownloadUrl(
+  platformInfo?: PlatformInfo,
+): DownloadInfo {
   const os = platformInfo?.os ?? detectOS();
   const arch = platformInfo?.arch ?? getArch();
-  
-  const baseUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download";
-  
+
+  const baseUrl =
+    "https://github.com/cloudflare/cloudflared/releases/latest/download";
+
   if (os === "windows") {
     const winArch = arch === "386" ? "386" : "amd64";
     return {
@@ -222,7 +235,7 @@ export function getCloudflaredDownloadUrl(platformInfo?: PlatformInfo): Download
       checksumUrl: `${baseUrl}/cloudflared-windows-${winArch}.exe.sha256`,
     };
   }
-  
+
   if (os === "macos") {
     const macArch = arch === "arm64" ? "arm64" : "amd64";
     return {
@@ -231,7 +244,7 @@ export function getCloudflaredDownloadUrl(platformInfo?: PlatformInfo): Download
       checksumUrl: `${baseUrl}/cloudflared-darwin-${macArch}.tgz.sha256`,
     };
   }
-  
+
   // Linux
   return {
     url: `${baseUrl}/cloudflared-linux-${arch}`,
@@ -250,7 +263,7 @@ export function getCloudflaredDownloadUrl(platformInfo?: PlatformInfo): Download
 export async function getAvailableInstallMethods(): Promise<InstallMethod[]> {
   const info = await getPlatformInfo();
   const methods: InstallMethod[] = [];
-  
+
   if (info.os === "macos") {
     methods.push({
       name: "homebrew",
@@ -299,13 +312,18 @@ export async function getAvailableInstallMethods(): Promise<InstallMethod[]> {
         requiresSudo: true,
       });
     }
-    if (info.distro === "rhel" || info.packageManager === "dnf" || info.packageManager === "yum") {
+    if (
+      info.distro === "rhel" ||
+      info.packageManager === "dnf" ||
+      info.packageManager === "yum"
+    ) {
       methods.push({
         name: "rpm",
         available: true,
-        command: info.packageManager === "dnf" 
-          ? "sudo dnf install cloudflared" 
-          : "sudo yum install cloudflared",
+        command:
+          info.packageManager === "dnf"
+            ? "sudo dnf install cloudflared"
+            : "sudo yum install cloudflared",
         description: "Install via DNF/YUM (RHEL/Fedora)",
         requiresSudo: true,
       });
@@ -322,12 +340,13 @@ export async function getAvailableInstallMethods(): Promise<InstallMethod[]> {
     methods.push({
       name: "binary",
       available: true,
-      command: "curl -L <url> -o cloudflared && chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/",
+      command:
+        "curl -L <url> -o cloudflared && chmod +x cloudflared && sudo mv cloudflared /usr/local/bin/",
       description: "Download binary directly",
       requiresSudo: true,
     });
   }
-  
+
   return methods;
 }
 
@@ -339,12 +358,17 @@ export async function getAvailableInstallMethods(): Promise<InstallMethod[]> {
  * Install cloudflared using package manager
  */
 export async function installWithPackageManager(
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<InstallResult> {
   const info = await getPlatformInfo();
-  
-  onProgress?.({ step: "Detecting platform...", progress: 1, total: 5, detail: `${info.os} (${info.arch})` });
-  
+
+  onProgress?.({
+    step: "Detecting platform...",
+    progress: 1,
+    total: 5,
+    detail: `${info.os} (${info.arch})`,
+  });
+
   // Check if already installed
   const status = await checkCloudflaredStatus();
   if (status.installed) {
@@ -355,27 +379,30 @@ export async function installWithPackageManager(
       skipped: true,
     };
   }
-  
+
   onProgress?.({ step: "Checking package manager...", progress: 2, total: 5 });
-  
+
   try {
     let shell: string;
     let args: string[];
-    
+
     if (info.os === "macos") {
       if (!info.packageManager) {
         return {
           success: false,
-          message: "Homebrew not found. Please install Homebrew first: https://brew.sh",
+          message:
+            "Homebrew not found. Please install Homebrew first: https://brew.sh",
         };
       }
       shell = "sh";
       args = ["-c", "brew install cloudflared"];
-      
     } else if (info.os === "windows") {
       if (info.packageManager === "winget") {
         shell = "cmd";
-        args = ["/c", "winget install --id Cloudflare.cloudflared --accept-source-agreements --accept-package-agreements"];
+        args = [
+          "/c",
+          "winget install --id Cloudflare.cloudflared --accept-source-agreements --accept-package-agreements",
+        ];
       } else if (info.packageManager === "chocolatey") {
         shell = "cmd";
         args = ["/c", "choco install cloudflared -y"];
@@ -383,31 +410,43 @@ export async function installWithPackageManager(
         // Fall back to binary download
         return installBinary(onProgress);
       }
-      
     } else {
       // Linux
       if (info.packageManager === "apt") {
-        onProgress?.({ step: "Adding Cloudflare repository...", progress: 2, total: 5 });
-        
+        onProgress?.({
+          step: "Adding Cloudflare repository...",
+          progress: 2,
+          total: 5,
+        });
+
         shell = "sh";
-        args = ["-c", `
+        args = [
+          "-c",
+          `
           sudo mkdir -p --mode=0755 /usr/share/keyrings && \
           curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null && \
           echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list && \
           sudo apt-get update && sudo apt-get install -y cloudflared
-        `];
+        `,
+        ];
       } else if (info.packageManager === "dnf") {
         shell = "sh";
-        args = ["-c", `
+        args = [
+          "-c",
+          `
           curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | sudo tee /etc/yum.repos.d/cloudflared.repo && \
           sudo dnf install -y cloudflared
-        `];
+        `,
+        ];
       } else if (info.packageManager === "yum") {
         shell = "sh";
-        args = ["-c", `
+        args = [
+          "-c",
+          `
           curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | sudo tee /etc/yum.repos.d/cloudflared.repo && \
           sudo yum install -y cloudflared
-        `];
+        `,
+        ];
       } else if (info.packageManager === "pacman") {
         shell = "sh";
         args = ["-c", "sudo pacman -Sy --noconfirm cloudflared"];
@@ -416,31 +455,35 @@ export async function installWithPackageManager(
         return installBinary(onProgress);
       }
     }
-    
+
     onProgress?.({ step: "Installing cloudflared...", progress: 3, total: 5 });
-    
+
     const proc = Bun.spawn([shell, ...args], {
       stdout: "pipe",
       stderr: "pipe",
     });
-    
-    const [stdout, stderr] = await Promise.all([
+
+    const [stdout, _stderr] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
     ]);
-    
+
     const exitCode = await proc.exited;
-    
+
     onProgress?.({ step: "Verifying installation...", progress: 4, total: 5 });
-    
+
     if (exitCode !== 0) {
       // Try binary installation as fallback
-      onProgress?.({ step: "Package manager failed, trying binary...", progress: 4, total: 5 });
+      onProgress?.({
+        step: "Package manager failed, trying binary...",
+        progress: 4,
+        total: 5,
+      });
       return installBinary(onProgress);
     }
-    
+
     onProgress?.({ step: "Installation complete!", progress: 5, total: 5 });
-    
+
     const newStatus = await checkCloudflaredStatus();
     return {
       success: true,
@@ -448,7 +491,6 @@ export async function installWithPackageManager(
       version: newStatus.version,
       output: stdout,
     };
-    
   } catch (error) {
     return {
       success: false,
@@ -460,12 +502,19 @@ export async function installWithPackageManager(
 /**
  * Install cloudflared by downloading binary directly
  */
-export async function installBinary(onProgress?: ProgressCallback): Promise<InstallResult> {
+export async function installBinary(
+  onProgress?: ProgressCallback,
+): Promise<InstallResult> {
   const info = await getPlatformInfo();
   const download = getCloudflaredDownloadUrl(info);
-  
-  onProgress?.({ step: "Preparing download...", progress: 1, total: 5, detail: download.url });
-  
+
+  onProgress?.({
+    step: "Preparing download...",
+    progress: 1,
+    total: 5,
+    detail: download.url,
+  });
+
   // Check if already installed
   const status = await checkCloudflaredStatus();
   if (status.installed) {
@@ -476,7 +525,7 @@ export async function installBinary(onProgress?: ProgressCallback): Promise<Inst
       skipped: true,
     };
   }
-  
+
   try {
     if (info.os === "windows") {
       return installBinaryWindows(download, onProgress);
@@ -498,14 +547,22 @@ export async function installBinary(onProgress?: ProgressCallback): Promise<Inst
  */
 async function installBinaryWindows(
   download: DownloadInfo,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<InstallResult> {
-  const appData = process.env.LOCALAPPDATA || process.env.APPDATA || "C:\\Users\\Default\\AppData\\Local";
+  const appData =
+    process.env.LOCALAPPDATA ||
+    process.env.APPDATA ||
+    "C:\\Users\\Default\\AppData\\Local";
   const installPath = `${appData}\\cloudflared`;
   const exePath = `${installPath}\\${download.filename}`;
-  
-  onProgress?.({ step: "Downloading cloudflared...", progress: 2, total: 5, detail: installPath });
-  
+
+  onProgress?.({
+    step: "Downloading cloudflared...",
+    progress: 2,
+    total: 5,
+    detail: installPath,
+  });
+
   const command = `
     $ErrorActionPreference = "Stop"
     if (-not (Test-Path "${installPath}")) { 
@@ -519,17 +576,17 @@ async function installBinaryWindows(
       [Environment]::SetEnvironmentVariable("PATH", "$currentPath;${installPath}", [EnvironmentVariableTarget]::User)
     }
   `;
-  
+
   const proc = Bun.spawn(["powershell", "-NoProfile", "-Command", command], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  
+
   onProgress?.({ step: "Installing to " + installPath, progress: 3, total: 5 });
-  
+
   const stderr = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
-  
+
   if (exitCode !== 0) {
     return {
       success: false,
@@ -537,9 +594,9 @@ async function installBinaryWindows(
       output: stderr,
     };
   }
-  
+
   onProgress?.({ step: "Verifying installation...", progress: 4, total: 5 });
-  
+
   // Verify by running from full path
   try {
     const verifyProc = Bun.spawn([exePath, "--version"], {
@@ -548,9 +605,9 @@ async function installBinaryWindows(
     });
     const output = await new Response(verifyProc.stdout).text();
     const versionMatch = output.match(/cloudflared version (\d+\.\d+\.\d+)/);
-    
+
     onProgress?.({ step: "Installation complete!", progress: 5, total: 5 });
-    
+
     return {
       success: true,
       message: `cloudflared installed to ${installPath}. Please restart your terminal to use it.`,
@@ -569,12 +626,12 @@ async function installBinaryWindows(
  */
 async function installBinaryMacOS(
   download: DownloadInfo,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<InstallResult> {
   const installPath = "/usr/local/bin";
-  
+
   onProgress?.({ step: "Downloading cloudflared...", progress: 2, total: 5 });
-  
+
   const command = `
     curl -fsSL "${download.url}" -o /tmp/cloudflared.tgz && \
     tar -xzf /tmp/cloudflared.tgz -C /tmp && \
@@ -582,17 +639,17 @@ async function installBinaryMacOS(
     sudo chmod +x ${installPath}/cloudflared && \
     rm -f /tmp/cloudflared.tgz
   `;
-  
+
   const proc = Bun.spawn(["sh", "-c", command], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  
+
   onProgress?.({ step: "Installing to " + installPath, progress: 3, total: 5 });
-  
+
   const stderr = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
-  
+
   if (exitCode !== 0) {
     return {
       success: false,
@@ -600,13 +657,13 @@ async function installBinaryMacOS(
       output: stderr,
     };
   }
-  
+
   onProgress?.({ step: "Verifying installation...", progress: 4, total: 5 });
-  
+
   const newStatus = await checkCloudflaredStatus();
-  
+
   onProgress?.({ step: "Installation complete!", progress: 5, total: 5 });
-  
+
   return {
     success: true,
     message: `cloudflared ${newStatus.version || ""} installed to ${installPath}`,
@@ -619,28 +676,28 @@ async function installBinaryMacOS(
  */
 async function installBinaryLinux(
   download: DownloadInfo,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<InstallResult> {
   const installPath = "/usr/local/bin";
-  
+
   onProgress?.({ step: "Downloading cloudflared...", progress: 2, total: 5 });
-  
+
   const command = `
     curl -fsSL "${download.url}" -o /tmp/cloudflared && \
     sudo mv /tmp/cloudflared ${installPath}/cloudflared && \
     sudo chmod +x ${installPath}/cloudflared
   `;
-  
+
   const proc = Bun.spawn(["sh", "-c", command], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  
+
   onProgress?.({ step: "Installing to " + installPath, progress: 3, total: 5 });
-  
+
   const stderr = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
-  
+
   if (exitCode !== 0) {
     return {
       success: false,
@@ -648,13 +705,13 @@ async function installBinaryLinux(
       output: stderr,
     };
   }
-  
+
   onProgress?.({ step: "Verifying installation...", progress: 4, total: 5 });
-  
+
   const newStatus = await checkCloudflaredStatus();
-  
+
   onProgress?.({ step: "Installation complete!", progress: 5, total: 5 });
-  
+
   return {
     success: true,
     message: `cloudflared ${newStatus.version || ""} installed to ${installPath}`,
@@ -670,13 +727,24 @@ async function installBinaryLinux(
  * Auto-detect platform and install cloudflared
  * Skips installation if already installed
  */
-export async function autoInstall(onProgress?: ProgressCallback): Promise<InstallResult> {
-  onProgress?.({ step: "Checking installation status...", progress: 0, total: 5 });
-  
+export async function autoInstall(
+  onProgress?: ProgressCallback,
+): Promise<InstallResult> {
+  onProgress?.({
+    step: "Checking installation status...",
+    progress: 0,
+    total: 5,
+  });
+
   // Check if already installed - skip if so
   const status = await checkCloudflaredStatus();
   if (status.installed) {
-    onProgress?.({ step: "Already installed!", progress: 5, total: 5, detail: `v${status.version}` });
+    onProgress?.({
+      step: "Already installed!",
+      progress: 5,
+      total: 5,
+      detail: `v${status.version}`,
+    });
     return {
       success: true,
       message: `cloudflared is already installed (version ${status.version})`,
@@ -684,13 +752,13 @@ export async function autoInstall(onProgress?: ProgressCallback): Promise<Instal
       skipped: true,
     };
   }
-  
+
   // Try package manager first
   const pmResult = await installWithPackageManager(onProgress);
   if (pmResult.success) {
     return pmResult;
   }
-  
+
   // Fall back to binary
   return installBinary(onProgress);
 }
@@ -713,9 +781,10 @@ export async function getInstallInstructions(): Promise<{
 }> {
   const info = await getPlatformInfo();
   const download = getCloudflaredDownloadUrl(info);
-  
-  const docsUrl = "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/";
-  
+
+  const docsUrl =
+    "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/";
+
   if (info.os === "macos") {
     return {
       platform: "macos",
@@ -723,7 +792,8 @@ export async function getInstallInstructions(): Promise<{
       preferred: {
         method: "Homebrew",
         command: "brew install cloudflared",
-        description: "Recommended for macOS. Install Homebrew first if not installed: https://brew.sh",
+        description:
+          "Recommended for macOS. Install Homebrew first if not installed: https://brew.sh",
       },
       alternative: {
         method: "Binary",
@@ -734,7 +804,7 @@ export async function getInstallInstructions(): Promise<{
       downloadUrl: download.url,
     };
   }
-  
+
   if (info.os === "windows") {
     return {
       platform: "windows",
@@ -753,17 +823,21 @@ export async function getInstallInstructions(): Promise<{
       downloadUrl: download.url,
     };
   }
-  
+
   // Linux
   let preferred: { method: string; command: string; description: string };
-  
+
   if (info.distro === "debian" || info.packageManager === "apt") {
     preferred = {
       method: "APT",
       command: `curl -fsSL https://pkg.cloudflare.com/cloudflare-public-v2.gpg | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null && echo "deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list && sudo apt-get update && sudo apt-get install cloudflared`,
       description: "For Debian, Ubuntu, Linux Mint, and derivatives",
     };
-  } else if (info.distro === "rhel" || info.packageManager === "dnf" || info.packageManager === "yum") {
+  } else if (
+    info.distro === "rhel" ||
+    info.packageManager === "dnf" ||
+    info.packageManager === "yum"
+  ) {
     preferred = {
       method: "DNF/YUM",
       command: `curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | sudo tee /etc/yum.repos.d/cloudflared.repo && sudo ${info.packageManager || "yum"} install cloudflared`,
@@ -782,7 +856,7 @@ export async function getInstallInstructions(): Promise<{
       description: "Download binary directly (works on any Linux)",
     };
   }
-  
+
   return {
     platform: "linux",
     arch: info.arch,
@@ -797,5 +871,3 @@ export async function getInstallInstructions(): Promise<{
     downloadUrl: download.url,
   };
 }
-
-

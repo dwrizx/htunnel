@@ -9,7 +9,7 @@ export interface TunnelProvider {
 export async function waitForUrl(
   stream: ReadableStream<Uint8Array>,
   patterns: RegExp[],
-  timeoutMs = 30000
+  timeoutMs = 30000,
 ): Promise<string> {
   const decoder = new TextDecoder();
   let buffer = "";

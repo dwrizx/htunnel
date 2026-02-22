@@ -26,19 +26,19 @@ bun run start
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [README.md](README.md) | This file - Quick start & overview |
-| [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) | Complete Cloudflare Tunnel guide |
-| [AGENTS.md](AGENTS.md) | Development guidelines for AI agents |
+| Document                                 | Description                          |
+| ---------------------------------------- | ------------------------------------ |
+| [README.md](README.md)                   | This file - Quick start & overview   |
+| [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md) | Complete Cloudflare Tunnel guide     |
+| [AGENTS.md](AGENTS.md)                   | Development guidelines for AI agents |
 
 ## Platform Support
 
-| Platform | Architecture | Auto-Install |
-|----------|--------------|--------------|
-| **Windows** | x64, x86 | ✅ winget, chocolatey |
-| **macOS** | Intel, Apple Silicon | ✅ homebrew |
-| **Linux** | x64, arm64, arm | ✅ apt, dnf, yum, pacman |
+| Platform    | Architecture         | Auto-Install             |
+| ----------- | -------------------- | ------------------------ |
+| **Windows** | x64, x86             | ✅ winget, chocolatey    |
+| **macOS**   | Intel, Apple Silicon | ✅ homebrew              |
+| **Linux**   | x64, arm64, arm      | ✅ apt, dnf, yum, pacman |
 
 ## Usage
 
@@ -70,12 +70,12 @@ bun run index.ts --help
 
 ## Providers
 
-| Provider | Requirements | Notes |
-|----------|-------------|-------|
-| **Pinggy** | SSH | Gratis, tanpa instalasi |
-| **Cloudflare** | `cloudflared` CLI | Enterprise-grade tunneling |
-| **ngrok** | `ngrok` CLI | Web inspector dashboard |
-| **Localtunnel** | npx | Gratis, support custom subdomain |
+| Provider        | Requirements      | Notes                            |
+| --------------- | ----------------- | -------------------------------- |
+| **Pinggy**      | SSH               | Gratis, tanpa instalasi          |
+| **Cloudflare**  | `cloudflared` CLI | Enterprise-grade tunneling       |
+| **ngrok**       | `ngrok` CLI       | Web inspector dashboard          |
+| **Localtunnel** | npx               | Gratis, support custom subdomain |
 
 ## Environment Variables
 
@@ -105,16 +105,19 @@ Based on [official Cloudflare documentation](https://developers.cloudflare.com/c
 #### Windows
 
 **Option 1: winget (recommended)**
+
 ```powershell
 winget install --id Cloudflare.cloudflared
 ```
 
 **Option 2: Chocolatey**
+
 ```powershell
 choco install cloudflared
 ```
 
 **Option 3: Manual Download**
+
 1. Download from: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
 2. Rename to `cloudflared.exe`
 3. Add to PATH or run from download directory
@@ -277,16 +280,19 @@ cloudflared tunnel --url http://localhost:3000
 For persistent tunnels with custom domains:
 
 1. **Login to Cloudflare**
+
    ```bash
    cloudflared tunnel login
    ```
 
 2. **Create a tunnel**
+
    ```bash
    cloudflared tunnel create my-tunnel
    ```
 
 3. **Configure the tunnel** (create `~/.cloudflared/config.yml`)
+
    ```yaml
    url: http://localhost:3000
    tunnel: <Tunnel-UUID>
@@ -294,6 +300,7 @@ For persistent tunnels with custom domains:
    ```
 
 4. **Route DNS**
+
    ```bash
    cloudflared tunnel route dns <UUID or NAME> <hostname>
    ```
@@ -338,23 +345,23 @@ hadestunnel/
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Web dashboard |
-| GET | `/help` | Help page |
-| GET | `/install` | Provider installation page |
-| GET | `/api/tunnels` | List all tunnels |
-| POST | `/api/tunnels` | Create tunnel |
-| POST | `/api/tunnels/:id/stop` | Stop tunnel |
-| POST | `/api/tunnels/:id/restart` | Restart tunnel |
-| DELETE | `/api/tunnels/:id` | Delete tunnel |
-| GET | `/api/tunnels/:id/logs` | Get tunnel logs |
-| GET | `/api/stats` | Get statistics |
-| GET | `/api/system` | Get system info |
-| GET | `/api/providers/status` | Check provider status |
-| POST | `/api/install/:provider` | Auto-install provider |
-| GET | `/api/cloudflared/status` | Cloudflared status |
-| POST | `/api/cloudflared/install` | Auto-install cloudflared |
+| Method | Endpoint                   | Description                |
+| ------ | -------------------------- | -------------------------- |
+| GET    | `/`                        | Web dashboard              |
+| GET    | `/help`                    | Help page                  |
+| GET    | `/install`                 | Provider installation page |
+| GET    | `/api/tunnels`             | List all tunnels           |
+| POST   | `/api/tunnels`             | Create tunnel              |
+| POST   | `/api/tunnels/:id/stop`    | Stop tunnel                |
+| POST   | `/api/tunnels/:id/restart` | Restart tunnel             |
+| DELETE | `/api/tunnels/:id`         | Delete tunnel              |
+| GET    | `/api/tunnels/:id/logs`    | Get tunnel logs            |
+| GET    | `/api/stats`               | Get statistics             |
+| GET    | `/api/system`              | Get system info            |
+| GET    | `/api/providers/status`    | Check provider status      |
+| POST   | `/api/install/:provider`   | Auto-install provider      |
+| GET    | `/api/cloudflared/status`  | Cloudflared status         |
+| POST   | `/api/cloudflared/install` | Auto-install cloudflared   |
 
 ## Tech Stack
 

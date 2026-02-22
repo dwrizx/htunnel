@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import { tunnelManager } from "../tunnel-manager";
 import { layout } from "../views/layout";
-import { createForm, tunnelList, statsHeader, installModal, PROVIDERS } from "../views/components";
+import {
+  createForm,
+  tunnelList,
+  statsHeader,
+  installModal,
+  PROVIDERS,
+} from "../views/components";
 import { checkAllProviders } from "../utils/cli-checker";
 
 export const webRoutes = new Hono();
@@ -142,17 +148,22 @@ PORT=8080 bun run start</pre>
 
 webRoutes.get("/install", async (c) => {
   const providerStatuses = await checkAllProviders();
-  
-  const providerCards = (Object.entries(PROVIDERS) as [string, any][]).map(([key, info]) => {
-    const status = providerStatuses.find(s => s.provider === key);
-    const isInstalled = status?.installed ?? true;
-    const needsInstall = info.requiresCli && !isInstalled;
-    const featuresHtml = info.features?.map((f: string) => 
-      `<span class="px-2 py-0.5 bg-dark-600 rounded text-[10px] text-gray-400">${f}</span>`
-    ).join('') || '';
-    
-    return `
-      <div class="p-4 bg-dark-700/50 rounded-xl ${isInstalled ? 'border border-emerald-500/30' : 'border border-dark-600'}">
+
+  const providerCards = (Object.entries(PROVIDERS) as [string, any][])
+    .map(([key, info]) => {
+      const status = providerStatuses.find((s) => s.provider === key);
+      const isInstalled = status?.installed ?? true;
+      const needsInstall = info.requiresCli && !isInstalled;
+      const featuresHtml =
+        info.features
+          ?.map(
+            (f: string) =>
+              `<span class="px-2 py-0.5 bg-dark-600 rounded text-[10px] text-gray-400">${f}</span>`,
+          )
+          .join("") || "";
+
+      return `
+      <div class="p-4 bg-dark-700/50 rounded-xl ${isInstalled ? "border border-emerald-500/30" : "border border-dark-600"}">
         <div class="flex items-start justify-between mb-2">
           <div class="flex items-center gap-3">
             <div class="size-10 rounded-lg bg-gradient-to-br ${info.color} flex items-center justify-center text-white shadow-lg">${info.icon}</div>
@@ -161,15 +172,19 @@ webRoutes.get("/install", async (c) => {
               <p class="text-xs text-gray-500">${info.description}</p>
             </div>
           </div>
-          ${isInstalled ? `
+          ${
+            isInstalled
+              ? `
             <span class="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-400">
               <svg class="size-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              Installed ${status?.version ? `v${status.version}` : ''}
-            </span>` : `
+              Installed ${status?.version ? `v${status.version}` : ""}
+            </span>`
+              : `
             <span class="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400">
               <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
               Not Installed
-            </span>`}
+            </span>`
+          }
         </div>
         
         <!-- Features -->
@@ -178,22 +193,30 @@ webRoutes.get("/install", async (c) => {
         </div>
         
         <!-- Auth Info -->
-        ${info.requiresAuth ? `
+        ${
+          info.requiresAuth
+            ? `
           <div class="mb-3 p-2 bg-violet-500/10 border border-violet-500/20 rounded-lg">
             <div class="flex items-center gap-2">
               <svg class="size-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
               </svg>
-              <span class="text-xs text-violet-400">Requires ${info.authField?.label || 'authentication'}</span>
+              <span class="text-xs text-violet-400">Requires ${info.authField?.label || "authentication"}</span>
             </div>
-            ${info.authField?.helpText ? `<p class="text-[10px] text-violet-400/70 mt-1 ml-6">${info.authField.helpText}</p>` : ''}
+            ${info.authField?.helpText ? `<p class="text-[10px] text-violet-400/70 mt-1 ml-6">${info.authField.helpText}</p>` : ""}
           </div>
-        ` : ''}
+        `
+            : ""
+        }
         
-        ${info.requiresCli ? `
+        ${
+          info.requiresCli
+            ? `
           <div class="pt-3 border-t border-dark-600">
             <p class="text-xs text-gray-500 mb-2">Required CLI: <code class="bg-dark-800 px-1.5 py-0.5 rounded">${info.requiresCli}</code></p>
-            ${needsInstall && info.installCommands ? `
+            ${
+              needsInstall && info.installCommands
+                ? `
               <div class="space-y-2">
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-gray-600 uppercase w-12">Linux:</span>
@@ -203,37 +226,50 @@ webRoutes.get("/install", async (c) => {
                   <span class="text-[10px] text-gray-600 uppercase w-12">macOS:</span>
                   <code class="text-[10px] text-gray-400 bg-dark-800 px-2 py-1 rounded flex-1 overflow-x-auto">${info.installCommands.macos}</code>
                 </div>
-                ${info.installCommands.windows ? `
+                ${
+                  info.installCommands.windows
+                    ? `
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-gray-600 uppercase w-12">Windows:</span>
                   <code class="text-[10px] text-gray-400 bg-dark-800 px-2 py-1 rounded flex-1 overflow-x-auto">${info.installCommands.windows}</code>
-                </div>` : ''}
+                </div>`
+                    : ""
+                }
               </div>
               <button onclick="showInstallModal('${key}')" class="mt-3 w-full py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs transition-colors flex items-center justify-center gap-2">
                 <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
                 Auto Install
-              </button>` : ''}
-          </div>` : `
+              </button>`
+                : ""
+            }
+          </div>`
+            : `
           <div class="pt-3 border-t border-dark-600 flex items-center justify-between">
             <p class="text-xs text-gray-500">No installation required</p>
             <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-[10px]">Ready to use</span>
-          </div>`}
+          </div>`
+        }
         
         <!-- Docs Link -->
-        ${info.docsUrl ? `
+        ${
+          info.docsUrl
+            ? `
           <a href="${info.docsUrl}" target="_blank" class="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-violet-400 transition-colors">
             <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
             View Documentation
           </a>
-        ` : ''}
+        `
+            : ""
+        }
       </div>
     `;
-  }).join('');
-  
+    })
+    .join("");
+
   const content = `
     <div class="bg-dark-800 rounded-2xl p-6 border border-dark-700 shadow-xl shadow-dark-900/50">
       <h2 class="text-lg font-semibold mb-2 flex items-center gap-2">

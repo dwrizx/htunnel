@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import { tunnelManager } from "../tunnel-manager";
 import { tunnelCard, tunnelList } from "../views/components";
-import type { CreateTunnelRequest, TunnelProvider, CloudflareTunnelMode } from "../types";
-import { runInstallCommand, checkAllProviders, detectOS, getArch } from "../utils/cli-checker";
-import { 
+import type {
+  CreateTunnelRequest,
+  TunnelProvider,
+  CloudflareTunnelMode,
+} from "../types";
+import { runInstallCommand, checkAllProviders } from "../utils/cli-checker";
+import {
   autoInstall as autoInstallCloudflared,
   getInstallInstructions as getCloudflaredInstructions,
-  isCloudflaredInstalled,
-  getCloudflaredVersion,
   checkCloudflaredStatus,
   getPlatformInfo,
   getAvailableInstallMethods,
@@ -25,15 +27,19 @@ apiRoutes.post("/tunnels", async (c) => {
   // Determine Cloudflare mode from form inputs
   let cloudflareMode: CloudflareTunnelMode | undefined;
   const provider = (form.get("provider") as TunnelProvider) || "pinggy";
-  
+
   if (provider === "cloudflare") {
     const token = form.get("token") as string;
     const tunnelName = form.get("cloudflareTunnelName") as string;
     const domain = form.get("cloudflareDomain") as string;
     const modeField = form.get("cloudflareMode") as string;
-    
+
     // Auto-detect mode if not explicitly set
-    if (modeField === "local" || modeField === "token" || modeField === "quick") {
+    if (
+      modeField === "local" ||
+      modeField === "token" ||
+      modeField === "quick"
+    ) {
       cloudflareMode = modeField as CloudflareTunnelMode;
     } else if (token) {
       cloudflareMode = "token";
@@ -54,7 +60,8 @@ apiRoutes.post("/tunnels", async (c) => {
     subdomain: (form.get("subdomain") as string) || undefined,
     // Cloudflare specific fields
     cloudflareMode,
-    cloudflareTunnelName: (form.get("cloudflareTunnelName") as string) || undefined,
+    cloudflareTunnelName:
+      (form.get("cloudflareTunnelName") as string) || undefined,
     cloudflareDomain: (form.get("cloudflareDomain") as string) || undefined,
   };
 
@@ -87,23 +94,27 @@ apiRoutes.get("/stats", (c) => {
 apiRoutes.get("/tunnels/:id/logs", (c) => {
   const tunnel = tunnelManager.get(c.req.param("id"));
   if (!tunnel) return c.html('<span class="text-gray-600">No logs</span>');
-  
+
   // Return formatted HTML for HTMX
-  const html = tunnel.logs.map(log => {
-    if (log.startsWith('$')) {
-      return `<div class="text-emerald-400">${log.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-    } else if (log.startsWith('ERROR')) {
-      return `<div class="text-red-400">${log.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-    } else if (log.startsWith('URL:')) {
-      return `<div class="text-violet-400">${log.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-    } else if (log.includes('established') || log.includes('successfully')) {
-      return `<div class="text-emerald-400">${log.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-    } else {
-      return `<div class="text-gray-400">${log.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-    }
-  }).join('');
-  
-  return c.html(html || '<span class="text-gray-600">Waiting for output...</span>');
+  const html = tunnel.logs
+    .map((log) => {
+      if (log.startsWith("$")) {
+        return `<div class="text-emerald-400">${log.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+      } else if (log.startsWith("ERROR")) {
+        return `<div class="text-red-400">${log.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+      } else if (log.startsWith("URL:")) {
+        return `<div class="text-violet-400">${log.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+      } else if (log.includes("established") || log.includes("successfully")) {
+        return `<div class="text-emerald-400">${log.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+      } else {
+        return `<div class="text-gray-400">${log.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+      }
+    })
+    .join("");
+
+  return c.html(
+    html || '<span class="text-gray-600">Waiting for output...</span>',
+  );
 });
 
 apiRoutes.get("/providers/status", async (c) => {
@@ -156,7 +167,7 @@ apiRoutes.post("/cloudflared/install", async (c) => {
       skipped: true,
     });
   }
-  
+
   const result = await autoInstallCloudflared();
   return c.json(result);
 });

@@ -1,9 +1,8 @@
-import type { ProviderInfo } from "../types";
 import { PROVIDERS } from "./components";
 
 export function layout(content: string, title = "Hades Tunnel"): string {
   const providersJson = JSON.stringify(PROVIDERS);
-  
+
   return `<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
